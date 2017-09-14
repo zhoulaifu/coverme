@@ -1,0 +1,19 @@
+#ifndef _GLOBALS_H_
+#define _GLOBALS_H_
+
+// i or d for integer/double
+
+#define  INPUT_KIND 'i'
+
+// u or m for multiplication or minimization
+#define PENALTY_KIND 'm'
+
+// redirect output of program under test  
+#define REDIRECT_STDOUT 0
+
+#define MIN(X, Y) (((X) < (Y)) ? (X) : (Y))
+
+double __r; //representing func.
+double __d; //for depth
+
+#endif

@@ -1,0 +1,4 @@
+void foo(double x){
+  if (x<=3 || x>=0)
+    return;
+}

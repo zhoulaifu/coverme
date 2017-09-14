@@ -1,0 +1,429 @@
+        -:    0:Source:foo.c
+        -:    0:Graph:foo.gcno
+        -:    0:Data:foo.gcda
+        -:    0:Runs:1
+        -:    0:Programs:1
+        -:    1:
+        -:    2:#ifndef lint
+        -:    3:static  char sccsid[] = "@(#)e_pow.c 1.5 04/04/22 SMI"; 
+        -:    4:#endif
+        -:    5:
+        -:    6:/*
+        -:    7: * ====================================================
+        -:    8: * Copyright (C) 2004 by Sun Microsystems, Inc. All rights reserved.
+        -:    9: *
+        -:   10: * Permission to use, copy, modify, and distribute this
+        -:   11: * software is freely granted, provided that this notice 
+        -:   12: * is preserved.
+        -:   13: * ====================================================
+        -:   14: */
+        -:   15:
+        -:   16:/* __ieee754_pow(x,y) return x**y
+        -:   17: *
+        -:   18: *		      n
+        -:   19: * Method:  Let x =  2   * (1+f)
+        -:   20: *	1. Compute and return log2(x) in two pieces:
+        -:   21: *		log2(x) = w1 + w2,
+        -:   22: *	   where w1 has 53-24 = 29 bit trailing zeros.
+        -:   23: *	2. Perform y*log2(x) = n+y' by simulating muti-precision 
+        -:   24: *	   arithmetic, where |y'|<=0.5.
+        -:   25: *	3. Return x**y = 2**n*exp(y'*log2)
+        -:   26: *
+        -:   27: * Special cases:
+        -:   28: *	1.  (anything) ** 0  is 1
+        -:   29: *	2.  (anything) ** 1  is itself
+        -:   30: *	3.  (anything) ** NAN is NAN
+        -:   31: *	4.  NAN ** (anything except 0) is NAN
+        -:   32: *	5.  +-(|x| > 1) **  +INF is +INF
+        -:   33: *	6.  +-(|x| > 1) **  -INF is +0
+        -:   34: *	7.  +-(|x| < 1) **  +INF is +0
+        -:   35: *	8.  +-(|x| < 1) **  -INF is +INF
+        -:   36: *	9.  +-1         ** +-INF is NAN
+        -:   37: *	10. +0 ** (+anything except 0, NAN)               is +0
+        -:   38: *	11. -0 ** (+anything except 0, NAN, odd integer)  is +0
+        -:   39: *	12. +0 ** (-anything except 0, NAN)               is +INF
+        -:   40: *	13. -0 ** (-anything except 0, NAN, odd integer)  is +INF
+        -:   41: *	14. -0 ** (odd integer) = -( +0 ** (odd integer) )
+        -:   42: *	15. +INF ** (+anything except 0,NAN) is +INF
+        -:   43: *	16. +INF ** (-anything except 0,NAN) is +0
+        -:   44: *	17. -INF ** (anything)  = -0 ** (-anything)
+        -:   45: *	18. (-anything) ** (integer) is (-1)**(integer)*(+anything**integer)
+        -:   46: *	19. (-anything except 0 and inf) ** (non-integer) is NAN
+        -:   47: *
+        -:   48: * Accuracy:
+        -:   49: *	pow(x,y) returns x**y nearly rounded. In particular
+        -:   50: *			pow(integer,integer)
+        -:   51: *	always returns the correct integer provided it is 
+        -:   52: *	representable.
+        -:   53: *
+        -:   54: * Constants :
+        -:   55: * The hexadecimal values are the intended ones for the following 
+        -:   56: * constants. The decimal values may be used, provided that the 
+        -:   57: * compiler will convert from decimal to binary accurately enough 
+        -:   58: * to produce the hexadecimal values shown.
+        -:   59: */
+        -:   60:
+        -:   61:#include "fdlibm.h"
+        -:   62:
+        -:   63:#ifdef __STDC__
+        -:   64:static const double 
+        -:   65:#else
+        -:   66:static double 
+        -:   67:#endif
+        -:   68:bp[] = {1.0, 1.5,},
+        -:   69:dp_h[] = { 0.0, 5.84962487220764160156e-01,}, /* 0x3FE2B803, 0x40000000 */
+        -:   70:dp_l[] = { 0.0, 1.35003920212974897128e-08,}, /* 0x3E4CFDEB, 0x43CFD006 */
+        -:   71:zero    =  0.0,
+        -:   72:one	=  1.0,
+        -:   73:two	=  2.0,
+        -:   74:two53	=  9007199254740992.0,	/* 0x43400000, 0x00000000 */
+        -:   75:huge	=  1.0e300,
+        -:   76:tiny    =  1.0e-300,
+        -:   77:	/* poly coefs for (3/2)*(log(x)-2s-2/3*s**3 */
+        -:   78:L1  =  5.99999999999994648725e-01, /* 0x3FE33333, 0x33333303 */
+        -:   79:L2  =  4.28571428578550184252e-01, /* 0x3FDB6DB6, 0xDB6FABFF */
+        -:   80:L3  =  3.33333329818377432918e-01, /* 0x3FD55555, 0x518F264D */
+        -:   81:L4  =  2.72728123808534006489e-01, /* 0x3FD17460, 0xA91D4101 */
+        -:   82:L5  =  2.30660745775561754067e-01, /* 0x3FCD864A, 0x93C9DB65 */
+        -:   83:L6  =  2.06975017800338417784e-01, /* 0x3FCA7E28, 0x4A454EEF */
+        -:   84:P1   =  1.66666666666666019037e-01, /* 0x3FC55555, 0x5555553E */
+        -:   85:P2   = -2.77777777770155933842e-03, /* 0xBF66C16C, 0x16BEBD93 */
+        -:   86:P3   =  6.61375632143793436117e-05, /* 0x3F11566A, 0xAF25DE2C */
+        -:   87:P4   = -1.65339022054652515390e-06, /* 0xBEBBBD41, 0xC5D26BF1 */
+        -:   88:P5   =  4.13813679705723846039e-08, /* 0x3E663769, 0x72BEA4D0 */
+        -:   89:lg2  =  6.93147180559945286227e-01, /* 0x3FE62E42, 0xFEFA39EF */
+        -:   90:lg2_h  =  6.93147182464599609375e-01, /* 0x3FE62E43, 0x00000000 */
+        -:   91:lg2_l  = -1.90465429995776804525e-09, /* 0xBE205C61, 0x0CA86C39 */
+        -:   92:ovt =  8.0085662595372944372e-0017, /* -(1024-log2(ovfl+.5ulp)) */
+        -:   93:cp    =  9.61796693925975554329e-01, /* 0x3FEEC709, 0xDC3A03FD =2/(3ln2) */
+        -:   94:cp_h  =  9.61796700954437255859e-01, /* 0x3FEEC709, 0xE0000000 =(float)cp */
+        -:   95:cp_l  = -7.02846165095275826516e-09, /* 0xBE3E2FE0, 0x145B01F5 =tail of cp_h*/
+        -:   96:ivln2    =  1.44269504088896338700e+00, /* 0x3FF71547, 0x652B82FE =1/ln2 */
+        -:   97:ivln2_h  =  1.44269502162933349609e+00, /* 0x3FF71547, 0x60000000 =24b 1/ln2*/
+        -:   98:ivln2_l  =  1.92596299112661746887e-08; /* 0x3E54AE0B, 0xF85DDF44 =1/ln2 tail*/
+        -:   99:
+        -:  100:#ifdef __STDC__
+function foo_raw called 154912753 returned 100% blocks executed 20%
+154912753:  101:	double foo_raw(double x, double y)
+        -:  102:#else
+        -:  103:	double foo_raw(x,y)
+        -:  104:	double x, y;
+        -:  105:#endif
+        -:  106:{
+        -:  107:	double z,ax,z_h,z_l,p_h,p_l;
+        -:  108:	double y1,t1,t2,r,s,t,u,v,w;
+        -:  109:	int i0,i1,i,j,k,yisint,n;
+        -:  110:	int hx,hy,ix,iy;
+        -:  111:	unsigned lx,ly;
+        -:  112:
+154912753:  113:	i0 = ((*(int*)&one)>>29)^1; i1=1-i0;
+154912753:  114:	hx = __HI(x); lx = __LO(x);
+154912753:  115:	hy = __HI(y); ly = __LO(y);
+154912753:  116:	ix = hx&0x7fffffff;  iy = hy&0x7fffffff;
+        -:  117:
+        -:  118:    /* y==zero: x**0 = 1 */
+154912753:  119:	if((iy|ly)==0) return one; 	
+branch  0 taken 0% (fallthrough)
+branch  1 taken 100%
+        -:  120:
+        -:  121:    /* +-NaN return x+y */
+154912753:  122:	if(ix > 0x7ff00000 || ((ix==0x7ff00000)&&(lx!=0)) ||
+branch  0 taken 100% (fallthrough)
+branch  1 taken 0%
+branch  2 taken 0% (fallthrough)
+branch  3 taken 100%
+branch  4 never executed
+branch  5 never executed
+branch  6 taken 100% (fallthrough)
+branch  7 taken 0%
+154912753:  123:	   iy > 0x7ff00000 || ((iy==0x7ff00000)&&(ly!=0))) 
+branch  0 taken 0% (fallthrough)
+branch  1 taken 100%
+branch  2 never executed
+branch  3 never executed
+    #####:  124:		return x+y;	
+        -:  125:
+        -:  126:    /* determine if y is an odd int when x < 0
+        -:  127:     * yisint = 0	... y is not an integer
+        -:  128:     * yisint = 1	... y is an odd int
+        -:  129:     * yisint = 2	... y is an even int
+        -:  130:     */
+154912753:  131:	yisint  = 0;
+154912753:  132:	if(hx<0) {	
+branch  0 taken 50% (fallthrough)
+branch  1 taken 50%
+ 77451415:  133:	    if(iy>=0x43400000) yisint = 2; /* even integer y */
+branch  0 taken 100% (fallthrough)
+branch  1 taken 0%
+    #####:  134:	    else if(iy>=0x3ff00000) {
+branch  0 never executed
+branch  1 never executed
+    #####:  135:		k = (iy>>20)-0x3ff;	   /* exponent */
+    #####:  136:		if(k>20) {
+branch  0 never executed
+branch  1 never executed
+    #####:  137:		    j = ly>>(52-k);
+    #####:  138:		    if((j<<(52-k))==ly) yisint = 2-(j&1);
+branch  0 never executed
+branch  1 never executed
+    #####:  139:		} else if(ly==0) {
+branch  0 never executed
+branch  1 never executed
+    #####:  140:		    j = iy>>(20-k);
+    #####:  141:		    if((j<<(20-k))==iy) yisint = 2-(j&1);
+branch  0 never executed
+branch  1 never executed
+        -:  142:		}
+        -:  143:	    }		
+        -:  144:	} 
+        -:  145:
+        -:  146:    /* special value of y */
+154912753:  147:	if(ly==0) { 	
+branch  0 taken 0% (fallthrough)
+branch  1 taken 100%
+    #####:  148:	    if (iy==0x7ff00000) {	/* y is +-inf */
+branch  0 never executed
+branch  1 never executed
+    #####:  149:	        if(((ix-0x3ff00000)|lx)==0)
+branch  0 never executed
+branch  1 never executed
+    #####:  150:		    return  y - y;	/* inf**+-1 is NaN */
+    #####:  151:	        else if (ix >= 0x3ff00000)/* (|x|>1)**+-inf = inf,0 */
+branch  0 never executed
+branch  1 never executed
+    #####:  152:		    return (hy>=0)? y: zero;
+branch  0 never executed
+branch  1 never executed
+        -:  153:	        else			/* (|x|<1)**-,+inf = inf,0 */
+    #####:  154:		    return (hy<0)?-y: zero;
+branch  0 never executed
+branch  1 never executed
+        -:  155:	    } 
+    #####:  156:	    if(iy==0x3ff00000) {	/* y is  +-1 */
+branch  0 never executed
+branch  1 never executed
+    #####:  157:		if(hy<0) return one/x; else return x;
+branch  0 never executed
+branch  1 never executed
+        -:  158:	    }
+    #####:  159:	    if(hy==0x40000000) return x*x; /* y is  2 */
+branch  0 never executed
+branch  1 never executed
+    #####:  160:	    if(hy==0x3fe00000) {	/* y is  0.5 */
+branch  0 never executed
+branch  1 never executed
+    #####:  161:		if(hx>=0)	/* x >= +0 */
+branch  0 never executed
+branch  1 never executed
+    #####:  162:		return sqrt(x);	
+        -:  163:	    }
+        -:  164:	}
+        -:  165:
+154912753:  166:	ax   = fabs(x);
+        -:  167:    /* special value of x */
+154912753:  168:	if(lx==0) {
+branch  0 taken 0% (fallthrough)
+branch  1 taken 100%
+    #####:  169:	    if(ix==0x7ff00000||ix==0||ix==0x3ff00000){
+branch  0 never executed
+branch  1 never executed
+branch  2 never executed
+branch  3 never executed
+branch  4 never executed
+branch  5 never executed
+    #####:  170:		z = ax;			/*x is +-0,+-inf,+-1*/
+    #####:  171:		if(hy<0) z = one/z;	/* z = (1/|x|) */
+branch  0 never executed
+branch  1 never executed
+    #####:  172:		if(hx<0) {
+branch  0 never executed
+branch  1 never executed
+    #####:  173:		    if(((ix-0x3ff00000)|yisint)==0) {
+branch  0 never executed
+branch  1 never executed
+    #####:  174:			z = (z-z)/(z-z); /* (-1)**non-int is NaN */
+    #####:  175:		    } else if(yisint==1) 
+branch  0 never executed
+branch  1 never executed
+    #####:  176:			z = -z;		/* (x<0)**odd = -(|x|**odd) */
+        -:  177:		}
+    #####:  178:		return z;
+        -:  179:	    }
+        -:  180:	}
+        -:  181:    
+154912753:  182:	n = (hx>>31)+1;
+        -:  183:
+        -:  184:    /* (x<0)**(non-int) is NaN */
+154912753:  185:	if((n|yisint)==0) return (x-x)/(x-x);
+branch  0 taken 0% (fallthrough)
+branch  1 taken 100%
+        -:  186:
+154912753:  187:	s = one; /* s (sign of result -ve**odd) = -1 else = 1 */
+154912753:  188:	if((n|(yisint-1))==0) s = -one;/* (-ve)**(odd int) */
+branch  0 taken 0% (fallthrough)
+branch  1 taken 100%
+        -:  189:
+        -:  190:    /* |y| is huge */
+154912753:  191:	if(iy>0x41e00000) { /* if |y| > 2**31 */
+branch  0 taken 100% (fallthrough)
+branch  1 taken 0%
+154912753:  192:	    if(iy>0x43f00000){	/* if |y| > 2**64, must o/uflow */
+branch  0 taken 100% (fallthrough)
+branch  1 taken 0%
+154912753:  193:		if(ix<=0x3fefffff) return (hy<0)? huge*huge:tiny*tiny;
+branch  0 taken 0% (fallthrough)
+branch  1 taken 100%
+branch  2 never executed
+branch  3 never executed
+154912753:  194:		if(ix>=0x3ff00000) return (hy>0)? huge*huge:tiny*tiny;
+branch  0 taken 100% (fallthrough)
+branch  1 taken 0%
+branch  2 taken 50% (fallthrough)
+branch  3 taken 50%
+        -:  195:	    }
+        -:  196:	/* over/underflow if x is not close to one */
+    #####:  197:	    if(ix<0x3fefffff) return (hy<0)? s*huge*huge:s*tiny*tiny;
+branch  0 never executed
+branch  1 never executed
+branch  2 never executed
+branch  3 never executed
+    #####:  198:	    if(ix>0x3ff00000) return (hy>0)? s*huge*huge:s*tiny*tiny;
+branch  0 never executed
+branch  1 never executed
+branch  2 never executed
+branch  3 never executed
+        -:  199:	/* now |1-x| is tiny <= 2**-20, suffice to compute 
+        -:  200:	   log(x) by x-x^2/2+x^3/3-x^4/4 */
+    #####:  201:	    t = ax-one;		/* t has 20 trailing zeros */
+    #####:  202:	    w = (t*t)*(0.5-t*(0.3333333333333333333333-t*0.25));
+    #####:  203:	    u = ivln2_h*t;	/* ivln2_h has 21 sig. bits */
+    #####:  204:	    v = t*ivln2_l-w*ivln2;
+    #####:  205:	    t1 = u+v;
+    #####:  206:	    __LO(t1) = 0;
+    #####:  207:	    t2 = v-(t1-u);
+        -:  208:	} else {
+        -:  209:	    double ss,s2,s_h,s_l,t_h,t_l;
+    #####:  210:	    n = 0;
+        -:  211:	/* take care subnormal number */
+    #####:  212:	    if(ix<0x00100000)
+branch  0 never executed
+branch  1 never executed
+    #####:  213:		{ax *= two53; n -= 53; ix = __HI(ax); }
+    #####:  214:	    n  += ((ix)>>20)-0x3ff;
+    #####:  215:	    j  = ix&0x000fffff;
+        -:  216:	/* determine interval */
+    #####:  217:	    ix = j|0x3ff00000;		/* normalize ix */
+    #####:  218:	    if(j<=0x3988E) k=0;		/* |x|<sqrt(3/2) */
+branch  0 never executed
+branch  1 never executed
+    #####:  219:	    else if(j<0xBB67A) k=1;	/* |x|<sqrt(3)   */
+branch  0 never executed
+branch  1 never executed
+    #####:  220:	    else {k=0;n+=1;ix -= 0x00100000;}
+    #####:  221:	    __HI(ax) = ix;
+        -:  222:
+        -:  223:	/* compute ss = s_h+s_l = (x-1)/(x+1) or (x-1.5)/(x+1.5) */
+    #####:  224:	    u = ax-bp[k];		/* bp[0]=1.0, bp[1]=1.5 */
+    #####:  225:	    v = one/(ax+bp[k]);
+    #####:  226:	    ss = u*v;
+    #####:  227:	    s_h = ss;
+    #####:  228:	    __LO(s_h) = 0;
+        -:  229:	/* t_h=ax+bp[k] High */
+    #####:  230:	    t_h = zero;
+    #####:  231:	    __HI(t_h)=((ix>>1)|0x20000000)+0x00080000+(k<<18); 
+    #####:  232:	    t_l = ax - (t_h-bp[k]);
+    #####:  233:	    s_l = v*((u-s_h*t_h)-s_h*t_l);
+        -:  234:	/* compute log(ax) */
+    #####:  235:	    s2 = ss*ss;
+    #####:  236:	    r = s2*s2*(L1+s2*(L2+s2*(L3+s2*(L4+s2*(L5+s2*L6)))));
+    #####:  237:	    r += s_l*(s_h+ss);
+    #####:  238:	    s2  = s_h*s_h;
+    #####:  239:	    t_h = 3.0+s2+r;
+    #####:  240:	    __LO(t_h) = 0;
+    #####:  241:	    t_l = r-((t_h-3.0)-s2);
+        -:  242:	/* u+v = ss*(1+...) */
+    #####:  243:	    u = s_h*t_h;
+    #####:  244:	    v = s_l*t_h+t_l*ss;
+        -:  245:	/* 2/(3log2)*(ss+...) */
+    #####:  246:	    p_h = u+v;
+    #####:  247:	    __LO(p_h) = 0;
+    #####:  248:	    p_l = v-(p_h-u);
+    #####:  249:	    z_h = cp_h*p_h;		/* cp_h+cp_l = 2/(3*log2) */
+    #####:  250:	    z_l = cp_l*p_h+p_l*cp+dp_l[k];
+        -:  251:	/* log2(ax) = (ss+..)*2/(3*log2) = n + dp_h + z_h + z_l */
+    #####:  252:	    t = (double)n;
+    #####:  253:	    t1 = (((z_h+z_l)+dp_h[k])+t);
+    #####:  254:	    __LO(t1) = 0;
+    #####:  255:	    t2 = z_l-(((t1-t)-dp_h[k])-z_h);
+        -:  256:	}
+        -:  257:
+        -:  258:    /* split up y into y1+y2 and compute (y1+y2)*(t1+t2) */
+    #####:  259:	y1  = y;
+    #####:  260:	__LO(y1) = 0;
+    #####:  261:	p_l = (y-y1)*t1+y*t2;
+    #####:  262:	p_h = y1*t1;
+    #####:  263:	z = p_l+p_h;
+    #####:  264:	j = __HI(z);
+    #####:  265:	i = __LO(z);
+    #####:  266:	if (j>=0x40900000) {				/* z >= 1024 */
+branch  0 never executed
+branch  1 never executed
+    #####:  267:	    if(((j-0x40900000)|i)!=0)			/* if z > 1024 */
+branch  0 never executed
+branch  1 never executed
+    #####:  268:		return s*huge*huge;			/* overflow */
+        -:  269:	    else {
+    #####:  270:		if(p_l+ovt>z-p_h) return s*huge*huge;	/* overflow */
+branch  0 never executed
+branch  1 never executed
+        -:  271:	    }
+    #####:  272:	} else if((j&0x7fffffff)>=0x4090cc00 ) {	/* z <= -1075 */
+branch  0 never executed
+branch  1 never executed
+    #####:  273:	    if(((j-0xc090cc00)|i)!=0) 		/* z < -1075 */
+branch  0 never executed
+branch  1 never executed
+    #####:  274:		return s*tiny*tiny;		/* underflow */
+        -:  275:	    else {
+    #####:  276:		if(p_l<=z-p_h) return s*tiny*tiny;	/* underflow */
+branch  0 never executed
+branch  1 never executed
+        -:  277:	    }
+        -:  278:	}
+        -:  279:    /*
+        -:  280:     * compute 2**(p_h+p_l)
+        -:  281:     */
+    #####:  282:	i = j&0x7fffffff;
+    #####:  283:	k = (i>>20)-0x3ff;
+    #####:  284:	n = 0;
+    #####:  285:	if(i>0x3fe00000) {		/* if |z| > 0.5, set n = [z+0.5] */
+branch  0 never executed
+branch  1 never executed
+    #####:  286:	    n = j+(0x00100000>>(k+1));
+    #####:  287:	    k = ((n&0x7fffffff)>>20)-0x3ff;	/* new k for n */
+    #####:  288:	    t = zero;
+    #####:  289:	    __HI(t) = (n&~(0x000fffff>>k));
+    #####:  290:	    n = ((n&0x000fffff)|0x00100000)>>(20-k);
+    #####:  291:	    if(j<0) n = -n;
+branch  0 never executed
+branch  1 never executed
+    #####:  292:	    p_h -= t;
+        -:  293:	} 
+    #####:  294:	t = p_l+p_h;
+    #####:  295:	__LO(t) = 0;
+    #####:  296:	u = t*lg2_h;
+    #####:  297:	v = (p_l-(t-p_h))*lg2+t*lg2_l;
+    #####:  298:	z = u+v;
+    #####:  299:	w = v-(z-u);
+    #####:  300:	t  = z*z;
+    #####:  301:	t1  = z - t*(P1+t*(P2+t*(P3+t*(P4+t*P5))));
+    #####:  302:	r  = (z*t1)/(t1-two)-(w+z*w);
+    #####:  303:	z  = one-(r-z);
+    #####:  304:	j  = __HI(z);
+    #####:  305:	j += (n<<20);
+    #####:  306:	if((j>>20)<=0) z = scalbn(z,n);	/* subnormal output */
+branch  0 never executed
+branch  1 never executed
+    #####:  307:	else __HI(z) += (n<<20);
+    #####:  308:	return s*z;
+        -:  309:}

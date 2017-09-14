@@ -1,0 +1,170 @@
+        -:    0:Source:foo.c
+        -:    0:Graph:foo.gcno
+        -:    0:Data:foo.gcda
+        -:    0:Runs:1
+        -:    0:Programs:1
+        -:    1:#pragma ident "@(#)k_tan.c 1.5 04/04/22 SMI"
+        -:    2:
+        -:    3:/*
+        -:    4: * ====================================================
+        -:    5: * Copyright 2004 Sun Microsystems, Inc.  All Rights Reserved.
+        -:    6: *
+        -:    7: * Permission to use, copy, modify, and distribute this
+        -:    8: * software is freely granted, provided that this notice
+        -:    9: * is preserved.
+        -:   10: * ====================================================
+        -:   11: */
+        -:   12:
+        -:   13:/* INDENT OFF */
+        -:   14:/* __kernel_tan( x, y, k )
+        -:   15: * kernel tan function on [-pi/4, pi/4], pi/4 ~ 0.7854
+        -:   16: * Input x is assumed to be bounded by ~pi/4 in magnitude.
+        -:   17: * Input y is the tail of x.
+        -:   18: * Input k indicates whether tan (if k = 1) or -1/tan (if k = -1) is returned.
+        -:   19: *
+        -:   20: * Algorithm
+        -:   21: *	1. Since tan(-x) = -tan(x), we need only to consider positive x.
+        -:   22: *	2. if x < 2^-28 (hx<0x3e300000 0), return x with inexact if x!=0.
+        -:   23: *	3. tan(x) is approximated by a odd polynomial of degree 27 on
+        -:   24: *	   [0,0.67434]
+        -:   25: *		  	         3             27
+        -:   26: *	   	tan(x) ~ x + T1*x + ... + T13*x
+        -:   27: *	   where
+        -:   28: *
+        -:   29: * 	        |tan(x)         2     4            26   |     -59.2
+        -:   30: * 	        |----- - (1+T1*x +T2*x +.... +T13*x    )| <= 2
+        -:   31: * 	        |  x 					|
+        -:   32: *
+        -:   33: *	   Note: tan(x+y) = tan(x) + tan'(x)*y
+        -:   34: *		          ~ tan(x) + (1+x*x)*y
+        -:   35: *	   Therefore, for better accuracy in computing tan(x+y), let
+        -:   36: *		     3      2      2       2       2
+        -:   37: *		r = x *(T2+x *(T3+x *(...+x *(T12+x *T13))))
+        -:   38: *	   then
+        -:   39: *		 		    3    2
+        -:   40: *		tan(x+y) = x + (T1*x + (x *(r+y)+y))
+        -:   41: *
+        -:   42: *      4. For x in [0.67434,pi/4],  let y = pi/4 - x, then
+        -:   43: *		tan(x) = tan(pi/4-y) = (1-tan(y))/(1+tan(y))
+        -:   44: *		       = 1 - 2*(tan(y) - (tan(y)^2)/(1+tan(y)))
+        -:   45: */
+        -:   46:
+        -:   47:#include "fdlibm.h"
+        -:   48:
+        -:   49:static const double xxx[] = {
+        -:   50:		 3.33333333333334091986e-01,	/* 3FD55555, 55555563 */
+        -:   51:		 1.33333333333201242699e-01,	/* 3FC11111, 1110FE7A */
+        -:   52:		 5.39682539762260521377e-02,	/* 3FABA1BA, 1BB341FE */
+        -:   53:		 2.18694882948595424599e-02,	/* 3F9664F4, 8406D637 */
+        -:   54:		 8.86323982359930005737e-03,	/* 3F8226E3, E96E8493 */
+        -:   55:		 3.59207910759131235356e-03,	/* 3F6D6D22, C9560328 */
+        -:   56:		 1.45620945432529025516e-03,	/* 3F57DBC8, FEE08315 */
+        -:   57:		 5.88041240820264096874e-04,	/* 3F4344D8, F2F26501 */
+        -:   58:		 2.46463134818469906812e-04,	/* 3F3026F7, 1A8D1068 */
+        -:   59:		 7.81794442939557092300e-05,	/* 3F147E88, A03792A6 */
+        -:   60:		 7.14072491382608190305e-05,	/* 3F12B80F, 32F0A7E9 */
+        -:   61:		-1.85586374855275456654e-05,	/* BEF375CB, DB605373 */
+        -:   62:		 2.59073051863633712884e-05,	/* 3EFB2A70, 74BF7AD4 */
+        -:   63:/* one */	 1.00000000000000000000e+00,	/* 3FF00000, 00000000 */
+        -:   64:/* pio4 */	 7.85398163397448278999e-01,	/* 3FE921FB, 54442D18 */
+        -:   65:/* pio4lo */	 3.06161699786838301793e-17	/* 3C81A626, 33145C07 */
+        -:   66:};
+        -:   67:#define	one	xxx[13]
+        -:   68:#define	pio4	xxx[14]
+        -:   69:#define	pio4lo	xxx[15]
+        -:   70:#define	T	xxx
+        -:   71:/* INDENT ON */
+        -:   72:
+        -:   73:double
+function foo_raw called 135500446 returned 100% blocks executed 50%
+135500446:   74:foo_raw(double x, double y, int iy) {
+        -:   75:	double z, r, v, w, s;
+        -:   76:	int ix, hx;
+        -:   77:
+135500446:   78:	hx = __HI(x);		/* high word of x */
+135500446:   79:	ix = hx & 0x7fffffff;			/* high word of |x| */
+135500446:   80:	if (ix < 0x3e300000) {			/* x < 2**-28 */
+branch  0 taken 0% (fallthrough)
+branch  1 taken 100%
+    #####:   81:		if ((int) x == 0) {		/* generate inexact */
+branch  0 never executed
+branch  1 never executed
+    #####:   82:			if (((ix | __LO(x)) | (iy + 1)) == 0)
+branch  0 never executed
+branch  1 never executed
+    #####:   83:				return one / fabs(x);
+        -:   84:			else {
+    #####:   85:				if (iy == 1)
+branch  0 never executed
+branch  1 never executed
+    #####:   86:					return x;
+        -:   87:				else {	/* compute -1 / (x+y) carefully */
+        -:   88:					double a, t;
+        -:   89:
+    #####:   90:					z = w = x + y;
+    #####:   91:					__LO(z) = 0;
+    #####:   92:					v = y - (z - x);
+    #####:   93:					t = a = -one / w;
+    #####:   94:					__LO(t) = 0;
+    #####:   95:					s = one + t * z;
+    #####:   96:					return t + a * (s + t * v);
+        -:   97:				}
+        -:   98:			}
+        -:   99:		}
+        -:  100:	}
+135500446:  101:	if (ix >= 0x3FE59428) {	/* |x| >= 0.6744 */
+branch  0 taken 100% (fallthrough)
+branch  1 taken 0%
+135500446:  102:		if (hx < 0) {
+branch  0 taken 50% (fallthrough)
+branch  1 taken 50%
+ 67749720:  103:			x = -x;
+ 67749720:  104:			y = -y;
+        -:  105:		}
+135500446:  106:		z = pio4 - x;
+135500446:  107:		w = pio4lo - y;
+135500446:  108:		x = z + w;
+135500446:  109:		y = 0.0;
+        -:  110:	}
+135500446:  111:	z = x * x;
+135500446:  112:	w = z * z;
+        -:  113:	/*
+        -:  114:	 * Break x^5*(T[1]+x^2*T[2]+...) into
+        -:  115:	 * x^5(T[1]+x^4*T[3]+...+x^20*T[11]) +
+        -:  116:	 * x^5(x^2*(T[2]+x^4*T[4]+...+x^22*[T12]))
+        -:  117:	 */
+271000892:  118:	r = T[1] + w * (T[3] + w * (T[5] + w * (T[7] + w * (T[9] +
+135500446:  119:		w * T[11]))));
+271000892:  120:	v = z * (T[2] + w * (T[4] + w * (T[6] + w * (T[8] + w * (T[10] +
+135500446:  121:		w * T[12])))));
+135500446:  122:	s = z * x;
+135500446:  123:	r = y + z * (s * (r + v) + y);
+135500446:  124:	r += T[0] * s;
+135500446:  125:	w = x + r;
+135500446:  126:	if (ix >= 0x3FE59428) {
+branch  0 taken 100% (fallthrough)
+branch  1 taken 0%
+135500446:  127:		v = (double) iy;
+271000892:  128:		return (double) (1 - ((hx >> 30) & 2)) *
+135500446:  129:			(v - 2.0 * (x - (w * w / (w + v) - r)));
+        -:  130:	}
+    #####:  131:	if (iy == 1)
+branch  0 never executed
+branch  1 never executed
+    #####:  132:		return w;
+        -:  133:	else {
+        -:  134:		/*
+        -:  135:		 * if allow error up to 2 ulp, simply return
+        -:  136:		 * -1.0 / (x+r) here
+        -:  137:		 */
+        -:  138:		/* compute -1.0 / (x+r) accurately */
+        -:  139:		double a, t;
+    #####:  140:		z = w;
+    #####:  141:		__LO(z) = 0;
+    #####:  142:		v = r - (z - x);	/* z+v = r+x */
+    #####:  143:		t = a = -1.0 / w;	/* a = -1.0/w */
+    #####:  144:		__LO(t) = 0;
+    #####:  145:		s = 1.0 + t * z;
+    #####:  146:		return t + a * (s + t * v);
+        -:  147:	}
+        -:  148:}

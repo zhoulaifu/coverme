@@ -1,0 +1,206 @@
+        -:    0:Source:foo.c
+        -:    0:Graph:foo.gcno
+        -:    0:Data:foo.gcda
+        -:    0:Runs:1
+        -:    0:Programs:1
+        -:    1:
+        -:    2:/* @(#)e_fmod.c 1.3 95/01/18 */
+        -:    3:/*
+        -:    4: * ====================================================
+        -:    5: * Copyright (C) 1993 by Sun Microsystems, Inc. All rights reserved.
+        -:    6: *
+        -:    7: * Developed at SunSoft, a Sun Microsystems, Inc. business.
+        -:    8: * Permission to use, copy, modify, and distribute this
+        -:    9: * software is freely granted, provided that this notice 
+        -:   10: * is preserved.
+        -:   11: * ====================================================
+        -:   12: */
+        -:   13:
+        -:   14:/* 
+        -:   15: * __ieee754_fmod(x,y)
+        -:   16: * Return x mod y in exact arithmetic
+        -:   17: * Method: shift and subtract
+        -:   18: */
+        -:   19:
+        -:   20:#include "fdlibm.h"
+        -:   21:
+        -:   22:#ifdef __STDC__
+        -:   23:static const double one = 1.0, Zero[] = {0.0, -0.0,};
+        -:   24:#else
+        -:   25:static double one = 1.0, Zero[] = {0.0, -0.0,};
+        -:   26:#endif
+        -:   27:
+        -:   28:#ifdef __STDC__
+function foo_raw called 172198984 returned 100% blocks executed 55%
+172198984:   29:	double foo_raw(double x, double y)
+        -:   30:#else
+        -:   31:	double foo_raw(x,y)
+        -:   32:	double x,y ;
+        -:   33:#endif
+        -:   34:{
+        -:   35:	int n,hx,hy,hz,ix,iy,sx,i;
+        -:   36:	unsigned lx,ly,lz;
+        -:   37:
+172198984:   38:	hx = __HI(x);		/* high word of x */
+172198984:   39:	lx = __LO(x);		/* low  word of x */
+172198984:   40:	hy = __HI(y);		/* high word of y */
+172198984:   41:	ly = __LO(y);		/* low  word of y */
+172198984:   42:	sx = hx&0x80000000;		/* sign of x */
+172198984:   43:	hx ^=sx;		/* |x| */
+172198984:   44:	hy &= 0x7fffffff;	/* |y| */
+        -:   45:
+        -:   46:    /* purge off exception values */
+344397968:   47:	if((hy|ly)==0||(hx>=0x7ff00000)||	/* y=0,or x not finite */
+branch  0 taken 100% (fallthrough)
+branch  1 taken 0%
+branch  2 taken 100% (fallthrough)
+branch  3 taken 0%
+branch  4 taken 0% (fallthrough)
+branch  5 taken 100%
+172198984:   48:	  ((hy|((ly|-ly)>>31))>0x7ff00000))	/* or y is NaN */
+    #####:   49:	    return (x*y)/(x*y);
+172198984:   50:	if(hx<=hy) {
+branch  0 taken 50% (fallthrough)
+branch  1 taken 50%
+ 86100610:   51:	    if((hx<hy)||(lx<ly)) return x;	/* |x|<|y| return x */
+branch  0 taken 1% (fallthrough)
+branch  1 taken 99%
+branch  2 taken 54% (fallthrough)
+branch  3 taken 46%
+       26:   52:	    if(lx==ly) 
+branch  0 taken 0% (fallthrough)
+branch  1 taken 100%
+    #####:   53:		return Zero[(unsigned)sx>>31];	/* |x|=|y| return x*0*/
+        -:   54:	}
+        -:   55:
+        -:   56:    /* determine ix = ilogb(x) */
+ 86098400:   57:	if(hx<0x00100000) {	/* subnormal x */
+branch  0 taken 0% (fallthrough)
+branch  1 taken 100%
+    #####:   58:	    if(hx==0) {
+branch  0 never executed
+branch  1 never executed
+    #####:   59:		for (ix = -1043, i=lx; i>0; i<<=1) ix -=1;
+branch  0 never executed
+branch  1 never executed
+        -:   60:	    } else {
+    #####:   61:		for (ix = -1022,i=(hx<<11); i>0; i<<=1) ix -=1;
+branch  0 never executed
+branch  1 never executed
+        -:   62:	    }
+ 86098400:   63:	} else ix = (hx>>20)-1023;
+        -:   64:
+        -:   65:    /* determine iy = ilogb(y) */
+ 86098400:   66:	if(hy<0x00100000) {	/* subnormal y */
+branch  0 taken 0% (fallthrough)
+branch  1 taken 100%
+    #####:   67:	    if(hy==0) {
+branch  0 never executed
+branch  1 never executed
+    #####:   68:		for (iy = -1043, i=ly; i>0; i<<=1) iy -=1;
+branch  0 never executed
+branch  1 never executed
+        -:   69:	    } else {
+    #####:   70:		for (iy = -1022,i=(hy<<11); i>0; i<<=1) iy -=1;
+branch  0 never executed
+branch  1 never executed
+        -:   71:	    }
+ 86098400:   72:	} else iy = (hy>>20)-1023;
+        -:   73:
+        -:   74:    /* set up {hx,lx}, {hy,ly} and align y to x */
+ 86098400:   75:	if(ix >= -1022) 
+branch  0 taken 100% (fallthrough)
+branch  1 taken 0%
+ 86098400:   76:	    hx = 0x00100000|(0x000fffff&hx);
+        -:   77:	else {		/* subnormal x, shift x to normal */
+    #####:   78:	    n = -1022-ix;
+    #####:   79:	    if(n<=31) {
+branch  0 never executed
+branch  1 never executed
+    #####:   80:	        hx = (hx<<n)|(lx>>(32-n));
+    #####:   81:	        lx <<= n;
+        -:   82:	    } else {
+    #####:   83:		hx = lx<<(n-32);
+    #####:   84:		lx = 0;
+        -:   85:	    }
+        -:   86:	}
+ 86098400:   87:	if(iy >= -1022) 
+branch  0 taken 100% (fallthrough)
+branch  1 taken 0%
+ 86098400:   88:	    hy = 0x00100000|(0x000fffff&hy);
+        -:   89:	else {		/* subnormal y, shift y to normal */
+    #####:   90:	    n = -1022-iy;
+    #####:   91:	    if(n<=31) {
+branch  0 never executed
+branch  1 never executed
+    #####:   92:	        hy = (hy<<n)|(ly>>(32-n));
+    #####:   93:	        ly <<= n;
+        -:   94:	    } else {
+    #####:   95:		hy = ly<<(n-32);
+    #####:   96:		ly = 0;
+        -:   97:	    }
+        -:   98:	}
+        -:   99:
+        -:  100:    /* fix point fmod */
+ 86098400:  101:	n = ix - iy;
+293219158:  102:	while(n--) {
+branch  0 taken 58%
+branch  1 taken 42% (fallthrough)
+121022358:  103:	    hz=hx-hy;lz=lx-ly; if(lx<ly) hz -= 1;
+branch  0 taken 50% (fallthrough)
+branch  1 taken 50%
+121022358:  104:	    if(hz<0){hx = hx+hx+(lx>>31); lx = lx+lx;}
+branch  0 taken 51% (fallthrough)
+branch  1 taken 49%
+        -:  105:	    else {
+ 59682601:  106:	    	if((hz|lz)==0) 		/* return sign(x)*0 */
+branch  0 taken 0% (fallthrough)
+branch  1 taken 100%
+    #####:  107:		    return Zero[(unsigned)sx>>31];
+ 59682601:  108:	    	hx = hz+hz+(lz>>31); lx = lz+lz;
+        -:  109:	    }
+        -:  110:	}
+ 86098400:  111:	hz=hx-hy;lz=lx-ly; if(lx<ly) hz -= 1;
+branch  0 taken 50% (fallthrough)
+branch  1 taken 50%
+ 86098400:  112:	if(hz>=0) {hx=hz;lx=lz;}
+branch  0 taken 69% (fallthrough)
+branch  1 taken 31%
+        -:  113:
+        -:  114:    /* convert back to floating value and restore the sign */
+ 86098400:  115:	if((hx|lx)==0) 			/* return sign(x)*0 */
+branch  0 taken 0% (fallthrough)
+branch  1 taken 100%
+    #####:  116:	    return Zero[(unsigned)sx>>31];	
+328735447:  117:	while(hx<0x00100000) {		/* normalize x */
+branch  0 taken 65%
+branch  1 taken 35% (fallthrough)
+156538647:  118:	    hx = hx+hx+(lx>>31); lx = lx+lx;
+156538647:  119:	    iy -= 1;
+        -:  120:	}
+ 86098400:  121:	if(iy>= -1022) {	/* normalize output */
+branch  0 taken 100% (fallthrough)
+branch  1 taken 0%
+ 86098400:  122:	    hx = ((hx-0x00100000)|((iy+1023)<<20));
+ 86098400:  123:	    __HI(x) = hx|sx;
+ 86098400:  124:	    __LO(x) = lx;
+        -:  125:	} else {		/* subnormal output */
+    #####:  126:	    n = -1022 - iy;
+    #####:  127:	    if(n<=20) {
+branch  0 never executed
+branch  1 never executed
+    #####:  128:		lx = (lx>>n)|((unsigned)hx<<(32-n));
+    #####:  129:		hx >>= n;
+    #####:  130:	    } else if (n<=31) {
+branch  0 never executed
+branch  1 never executed
+    #####:  131:		lx = (hx<<(32-n))|(lx>>n); hx = sx;
+        -:  132:	    } else {
+    #####:  133:		lx = hx>>(n-32); hx = sx;
+        -:  134:	    }
+    #####:  135:	    __HI(x) = hx|sx;
+    #####:  136:	    __LO(x) = lx;
+    #####:  137:	    x *= one;		/* create necessary signal */
+        -:  138:	}
+ 86098400:  139:	return x;		/* exact output */
+        -:  140:}

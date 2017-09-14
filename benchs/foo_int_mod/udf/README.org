@@ -1,0 +1,17 @@
+At this moment, When I say user, I also mean developper, because they
+are two different roles in one person (myself).
+
+The user needs to specify:
+* a foo.h file
+** that defines the input type,
+** that defines the interface of foo function
+* a port.py file
+** that defines how we port the C foo_r to python's
+** that defines the initial point
+* (optional) a test file test.cpp
+** that can be used for a sanity check
+
+In this way, we should automate the whole process.
+
+Requiring the user to provide such information may not be necessay
+later.

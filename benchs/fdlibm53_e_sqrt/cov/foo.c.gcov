@@ -1,0 +1,502 @@
+        -:    0:Source:foo.c
+        -:    0:Graph:foo.gcno
+        -:    0:Data:foo.gcda
+        -:    0:Runs:1
+        -:    0:Programs:1
+        -:    1:/* @(#)e_sqrt.c 1.3 95/01/18 */
+        -:    2:/*
+        -:    3: * ====================================================
+        -:    4: * Copyright (C) 1993 by Sun Microsystems, Inc. All rights reserved.
+        -:    5: *
+        -:    6: * Developed at SunSoft, a Sun Microsystems, Inc. business.
+        -:    7: * Permission to use, copy, modify, and distribute this
+        -:    8: * software is freely granted, provided that this notice 
+        -:    9: * is preserved.
+        -:   10: * ====================================================
+        -:   11: */
+        -:   12:
+        -:   13:/* __ieee754_sqrt(x)
+        -:   14: * Return correctly rounded sqrt.
+        -:   15: *           ------------------------------------------
+        -:   16: *	     |  Use the hardware sqrt if you have one |
+        -:   17: *           ------------------------------------------
+        -:   18: * Method: 
+        -:   19: *   Bit by bit method using integer arithmetic. (Slow, but portable) 
+        -:   20: *   1. Normalization
+        -:   21: *	Scale x to y in [1,4) with even powers of 2: 
+        -:   22: *	find an integer k such that  1 <= (y=x*2^(2k)) < 4, then
+        -:   23: *		sqrt(x) = 2^k * sqrt(y)
+        -:   24: *   2. Bit by bit computation
+        -:   25: *	Let q  = sqrt(y) truncated to i bit after binary point (q = 1),
+        -:   26: *	     i							 0
+        -:   27: *                                     i+1         2
+        -:   28: *	    s  = 2*q , and	y  =  2   * ( y - q  ).		(1)
+        -:   29: *	     i      i            i                 i
+        -:   30: *                                                        
+        -:   31: *	To compute q    from q , one checks whether 
+        -:   32: *		    i+1       i                       
+        -:   33: *
+        -:   34: *			      -(i+1) 2
+        -:   35: *			(q + 2      ) <= y.			(2)
+        -:   36: *     			  i
+        -:   37: *							      -(i+1)
+        -:   38: *	If (2) is false, then q   = q ; otherwise q   = q  + 2      .
+        -:   39: *		 	       i+1   i             i+1   i
+        -:   40: *
+        -:   41: *	With some algebric manipulation, it is not difficult to see
+        -:   42: *	that (2) is equivalent to 
+        -:   43: *                             -(i+1)
+        -:   44: *			s  +  2       <= y			(3)
+        -:   45: *			 i                i
+        -:   46: *
+        -:   47: *	The advantage of (3) is that s  and y  can be computed by 
+        -:   48: *				      i      i
+        -:   49: *	the following recurrence formula:
+        -:   50: *	    if (3) is false
+        -:   51: *
+        -:   52: *	    s     =  s  ,	y    = y   ;			(4)
+        -:   53: *	     i+1      i		 i+1    i
+        -:   54: *
+        -:   55: *	    otherwise,
+        -:   56: *                         -i                     -(i+1)
+        -:   57: *	    s	  =  s  + 2  ,  y    = y  -  s  - 2  		(5)
+        -:   58: *           i+1      i          i+1    i     i
+        -:   59: *				
+        -:   60: *	One may easily use induction to prove (4) and (5). 
+        -:   61: *	Note. Since the left hand side of (3) contain only i+2 bits,
+        -:   62: *	      it does not necessary to do a full (53-bit) comparison 
+        -:   63: *	      in (3).
+        -:   64: *   3. Final rounding
+        -:   65: *	After generating the 53 bits result, we compute one more bit.
+        -:   66: *	Together with the remainder, we can decide whether the
+        -:   67: *	result is exact, bigger than 1/2ulp, or less than 1/2ulp
+        -:   68: *	(it will never equal to 1/2ulp).
+        -:   69: *	The rounding mode can be detected by checking whether
+        -:   70: *	huge + tiny is equal to huge, and whether huge - tiny is
+        -:   71: *	equal to huge for some floating point number "huge" and "tiny".
+        -:   72: *		
+        -:   73: * Special cases:
+        -:   74: *	sqrt(+-0) = +-0 	... exact
+        -:   75: *	sqrt(inf) = inf
+        -:   76: *	sqrt(-ve) = NaN		... with invalid signal
+        -:   77: *	sqrt(NaN) = NaN		... with invalid signal for signaling NaN
+        -:   78: *
+        -:   79: * Other methods : see the appended file at the end of the program below.
+        -:   80: *---------------
+        -:   81: */
+        -:   82:
+        -:   83:#include "fdlibm.h"
+        -:   84:
+        -:   85:#ifdef __STDC__
+        -:   86:static	const double	one	= 1.0, tiny=1.0e-300;
+        -:   87:#else
+        -:   88:static	double	one	= 1.0, tiny=1.0e-300;
+        -:   89:#endif
+        -:   90:
+        -:   91:#ifdef __STDC__
+function foo_raw called 50065329 returned 100% blocks executed 73%
+ 50065329:   92:	double foo_raw(double x)
+        -:   93:#else
+        -:   94:	double foo_raw(x)
+        -:   95:	double x;
+        -:   96:#endif
+        -:   97:{
+        -:   98:	double z;
+ 50065329:   99:	int 	sign = (int)0x80000000; 
+        -:  100:	unsigned r,t1,s1,ix1,q1;
+        -:  101:	int ix0,s0,q,m,t,i;
+        -:  102:
+ 50065329:  103:	ix0 = __HI(x);			/* high word of x */
+ 50065329:  104:	ix1 = __LO(x);		/* low word of x */
+        -:  105:
+        -:  106:    /* take care of Inf and NaN */
+ 50065329:  107:	if((ix0&0x7ff00000)==0x7ff00000) {			
+branch  0 taken 0% (fallthrough)
+branch  1 taken 100%
+    #####:  108:	    return x*x+x;		/* sqrt(NaN)=NaN, sqrt(+inf)=+inf
+        -:  109:					   sqrt(-inf)=sNaN */
+        -:  110:	} 
+        -:  111:    /* take care of zero */
+ 50065329:  112:	if(ix0<=0) {
+branch  0 taken 50% (fallthrough)
+branch  1 taken 50%
+ 25031798:  113:	    if(((ix0&(~sign))|ix1)==0) return x;/* sqrt(+-0) = +-0 */
+branch  0 taken 0% (fallthrough)
+branch  1 taken 100%
+ 25031798:  114:	    else if(ix0<0)
+branch  0 taken 100% (fallthrough)
+branch  1 taken 0%
+ 25031798:  115:		return (x-x)/(x-x);		/* sqrt(-ve) = sNaN */
+        -:  116:	}
+        -:  117:    /* normalize x */
+ 25033531:  118:	m = (ix0>>20);
+ 25033531:  119:	if(m==0) {				/* subnormal x */
+branch  0 taken 0% (fallthrough)
+branch  1 taken 100%
+    #####:  120:	    while(ix0==0) {
+branch  0 never executed
+branch  1 never executed
+    #####:  121:		m -= 21;
+    #####:  122:		ix0 |= (ix1>>11); ix1 <<= 21;
+        -:  123:	    }
+    #####:  124:	    for(i=0;(ix0&0x00100000)==0;i++) ix0<<=1;
+branch  0 never executed
+branch  1 never executed
+    #####:  125:	    m -= i-1;
+    #####:  126:	    ix0 |= (ix1>>(32-i));
+    #####:  127:	    ix1 <<= i;
+        -:  128:	}
+ 25033531:  129:	m -= 1023;	/* unbias exponent */
+ 25033531:  130:	ix0 = (ix0&0x000fffff)|0x00100000;
+ 25033531:  131:	if(m&1){	/* odd m, double x to make it even */
+branch  0 taken 63% (fallthrough)
+branch  1 taken 37%
+ 15655919:  132:	    ix0 += ix0 + ((ix1&sign)>>31);
+ 15655919:  133:	    ix1 += ix1;
+        -:  134:	}
+ 25033531:  135:	m >>= 1;	/* m = [m/2] */
+        -:  136:
+        -:  137:    /* generate sqrt(x) bit by bit */
+ 25033531:  138:	ix0 += ix0 + ((ix1&sign)>>31);
+ 25033531:  139:	ix1 += ix1;
+ 25033531:  140:	q = q1 = s0 = s1 = 0;	/* [q,q1] = sqrt(x) */
+ 25033531:  141:	r = 0x00200000;		/* r = moving bit from right to left */
+        -:  142:
+600804744:  143:	while(r!=0) {
+branch  0 taken 96%
+branch  1 taken 4% (fallthrough)
+550737682:  144:	    t = s0+r; 
+550737682:  145:	    if(t<=ix0) { 
+branch  0 taken 52% (fallthrough)
+branch  1 taken 48%
+287309278:  146:		s0   = t+r; 
+287309278:  147:		ix0 -= t; 
+287309278:  148:		q   += r; 
+        -:  149:	    } 
+550737682:  150:	    ix0 += ix0 + ((ix1&sign)>>31);
+550737682:  151:	    ix1 += ix1;
+550737682:  152:	    r>>=1;
+        -:  153:	}
+        -:  154:
+ 25033531:  155:	r = sign;
+851140054:  156:	while(r!=0) {
+branch  0 taken 97%
+branch  1 taken 3% (fallthrough)
+801072992:  157:	    t1 = s1+r; 
+801072992:  158:	    t  = s0;
+801072992:  159:	    if((t<ix0)||((t==ix0)&&(t1<=ix1))) { 
+branch  0 taken 50% (fallthrough)
+branch  1 taken 50%
+branch  2 taken 1% (fallthrough)
+branch  3 taken 99%
+branch  4 taken 61% (fallthrough)
+branch  5 taken 39%
+400548106:  160:		s1  = t1+r;
+400548106:  161:		if(((t1&sign)==sign)&&(s1&sign)==0) s0 += 1;
+branch  0 taken 50% (fallthrough)
+branch  1 taken 50%
+branch  2 taken 6% (fallthrough)
+branch  3 taken 94%
+400548106:  162:		ix0 -= t;
+400548106:  163:		if (ix1 < t1) ix0 -= 1;
+branch  0 taken 48% (fallthrough)
+branch  1 taken 52%
+400548106:  164:		ix1 -= t1;
+400548106:  165:		q1  += r;
+        -:  166:	    }
+801072992:  167:	    ix0 += ix0 + ((ix1&sign)>>31);
+801072992:  168:	    ix1 += ix1;
+801072992:  169:	    r>>=1;
+        -:  170:	}
+        -:  171:
+        -:  172:    /* use floating add to find out rounding direction */
+ 25033531:  173:	if((ix0|ix1)!=0) {
+branch  0 taken 100% (fallthrough)
+branch  1 taken 0%
+ 25033531:  174:	    z = one-tiny; /* trigger inexact flag */
+ 25033531:  175:	    if (z>=one) {
+branch  0 taken 100% (fallthrough)
+branch  1 taken 0%
+ 25033531:  176:	        z = one+tiny;
+ 25033531:  177:	        if (q1==(unsigned)0xffffffff) { q1=0; q += 1;}
+branch  0 taken 0% (fallthrough)
+branch  1 taken 100%
+ 25033531:  178:		else if (z>one) {
+branch  0 taken 0% (fallthrough)
+branch  1 taken 100%
+    #####:  179:		    if (q1==(unsigned)0xfffffffe) q+=1;
+branch  0 never executed
+branch  1 never executed
+    #####:  180:		    q1+=2; 
+        -:  181:		} else
+ 25033531:  182:	            q1 += (q1&1);
+        -:  183:	    }
+        -:  184:	}
+ 25033531:  185:	ix0 = (q>>1)+0x3fe00000;
+ 25033531:  186:	ix1 =  q1>>1;
+ 25033531:  187:	if ((q&1)==1) ix1 |= sign;
+branch  0 taken 50% (fallthrough)
+branch  1 taken 50%
+ 25033531:  188:	ix0 += (m <<20);
+ 25033531:  189:	__HI(z) = ix0;
+ 25033531:  190:	__LO(z) = ix1;
+ 25033531:  191:	return z;
+        -:  192:}
+        -:  193:
+        -:  194:/*
+        -:  195:Other methods  (use floating-point arithmetic)
+        -:  196:-------------
+        -:  197:(This is a copy of a drafted paper by Prof W. Kahan 
+        -:  198:and K.C. Ng, written in May, 1986)
+        -:  199:
+        -:  200:	Two algorithms are given here to implement sqrt(x) 
+        -:  201:	(IEEE double precision arithmetic) in software.
+        -:  202:	Both supply sqrt(x) correctly rounded. The first algorithm (in
+        -:  203:	Section A) uses newton iterations and involves four divisions.
+        -:  204:	The second one uses reciproot iterations to avoid division, but
+        -:  205:	requires more multiplications. Both algorithms need the ability
+        -:  206:	to chop results of arithmetic operations instead of round them, 
+        -:  207:	and the INEXACT flag to indicate when an arithmetic operation
+        -:  208:	is executed exactly with no roundoff error, all part of the 
+        -:  209:	standard (IEEE 754-1985). The ability to perform shift, add,
+        -:  210:	subtract and logical AND operations upon 32-bit words is needed
+        -:  211:	too, though not part of the standard.
+        -:  212:
+        -:  213:A.  sqrt(x) by Newton Iteration
+        -:  214:
+        -:  215:   (1)	Initial approximation
+        -:  216:
+        -:  217:	Let x0 and x1 be the leading and the trailing 32-bit words of
+        -:  218:	a floating point number x (in IEEE double format) respectively 
+        -:  219:
+        -:  220:	    1    11		     52				  ...widths
+        -:  221:	   ------------------------------------------------------
+        -:  222:	x: |s|	  e     |	      f				|
+        -:  223:	   ------------------------------------------------------
+        -:  224:	      msb    lsb  msb				      lsb ...order
+        -:  225:
+        -:  226: 
+        -:  227:	     ------------------------  	     ------------------------
+        -:  228:	x0:  |s|   e    |    f1     |	 x1: |          f2           |
+        -:  229:	     ------------------------  	     ------------------------
+        -:  230:
+        -:  231:	By performing shifts and subtracts on x0 and x1 (both regarded
+        -:  232:	as integers), we obtain an 8-bit approximation of sqrt(x) as
+        -:  233:	follows.
+        -:  234:
+        -:  235:		k  := (x0>>1) + 0x1ff80000;
+        -:  236:		y0 := k - T1[31&(k>>15)].	... y ~ sqrt(x) to 8 bits
+        -:  237:	Here k is a 32-bit integer and T1[] is an integer array containing
+        -:  238:	correction terms. Now magically the floating value of y (y's
+        -:  239:	leading 32-bit word is y0, the value of its trailing word is 0)
+        -:  240:	approximates sqrt(x) to almost 8-bit.
+        -:  241:
+        -:  242:	Value of T1:
+        -:  243:	static int T1[32]= {
+        -:  244:	0,	1024,	3062,	5746,	9193,	13348,	18162,	23592,
+        -:  245:	29598,	36145,	43202,	50740,	58733,	67158,	75992,	85215,
+        -:  246:	83599,	71378,	60428,	50647,	41945,	34246,	27478,	21581,
+        -:  247:	16499,	12183,	8588,	5674,	3403,	1742,	661,	130,};
+        -:  248:
+        -:  249:    (2)	Iterative refinement
+        -:  250:
+        -:  251:	Apply Heron's rule three times to y, we have y approximates 
+        -:  252:	sqrt(x) to within 1 ulp (Unit in the Last Place):
+        -:  253:
+        -:  254:		y := (y+x/y)/2		... almost 17 sig. bits
+        -:  255:		y := (y+x/y)/2		... almost 35 sig. bits
+        -:  256:		y := y-(y-x/y)/2	... within 1 ulp
+        -:  257:
+        -:  258:
+        -:  259:	Remark 1.
+        -:  260:	    Another way to improve y to within 1 ulp is:
+        -:  261:
+        -:  262:		y := (y+x/y)		... almost 17 sig. bits to 2*sqrt(x)
+        -:  263:		y := y - 0x00100006	... almost 18 sig. bits to sqrt(x)
+        -:  264:
+        -:  265:				2
+        -:  266:			    (x-y )*y
+        -:  267:		y := y + 2* ----------	...within 1 ulp
+        -:  268:			       2
+        -:  269:			     3y  + x
+        -:  270:
+        -:  271:
+        -:  272:	This formula has one division fewer than the one above; however,
+        -:  273:	it requires more multiplications and additions. Also x must be
+        -:  274:	scaled in advance to avoid spurious overflow in evaluating the
+        -:  275:	expression 3y*y+x. Hence it is not recommended uless division
+        -:  276:	is slow. If division is very slow, then one should use the 
+        -:  277:	reciproot algorithm given in section B.
+        -:  278:
+        -:  279:    (3) Final adjustment
+        -:  280:
+        -:  281:	By twiddling y's last bit it is possible to force y to be 
+        -:  282:	correctly rounded according to the prevailing rounding mode
+        -:  283:	as follows. Let r and i be copies of the rounding mode and
+        -:  284:	inexact flag before entering the square root program. Also we
+        -:  285:	use the expression y+-ulp for the next representable floating
+        -:  286:	numbers (up and down) of y. Note that y+-ulp = either fixed
+        -:  287:	point y+-1, or multiply y by nextafter(1,+-inf) in chopped
+        -:  288:	mode.
+        -:  289:
+        -:  290:		I := FALSE;	... reset INEXACT flag I
+        -:  291:		R := RZ;	... set rounding mode to round-toward-zero
+        -:  292:		z := x/y;	... chopped quotient, possibly inexact
+        -:  293:		If(not I) then {	... if the quotient is exact
+        -:  294:		    if(z=y) {
+        -:  295:		        I := i;	 ... restore inexact flag
+        -:  296:		        R := r;  ... restore rounded mode
+        -:  297:		        return sqrt(x):=y.
+        -:  298:		    } else {
+        -:  299:			z := z - ulp;	... special rounding
+        -:  300:		    }
+        -:  301:		}
+        -:  302:		i := TRUE;		... sqrt(x) is inexact
+        -:  303:		If (r=RN) then z=z+ulp	... rounded-to-nearest
+        -:  304:		If (r=RP) then {	... round-toward-+inf
+        -:  305:		    y = y+ulp; z=z+ulp;
+        -:  306:		}
+        -:  307:		y := y+z;		... chopped sum
+        -:  308:		y0:=y0-0x00100000;	... y := y/2 is correctly rounded.
+        -:  309:	        I := i;	 		... restore inexact flag
+        -:  310:	        R := r;  		... restore rounded mode
+        -:  311:	        return sqrt(x):=y.
+        -:  312:		    
+        -:  313:    (4)	Special cases
+        -:  314:
+        -:  315:	Square root of +inf, +-0, or NaN is itself;
+        -:  316:	Square root of a negative number is NaN with invalid signal.
+        -:  317:
+        -:  318:
+        -:  319:B.  sqrt(x) by Reciproot Iteration
+        -:  320:
+        -:  321:   (1)	Initial approximation
+        -:  322:
+        -:  323:	Let x0 and x1 be the leading and the trailing 32-bit words of
+        -:  324:	a floating point number x (in IEEE double format) respectively
+        -:  325:	(see section A). By performing shifs and subtracts on x0 and y0,
+        -:  326:	we obtain a 7.8-bit approximation of 1/sqrt(x) as follows.
+        -:  327:
+        -:  328:	    k := 0x5fe80000 - (x0>>1);
+        -:  329:	    y0:= k - T2[63&(k>>14)].	... y ~ 1/sqrt(x) to 7.8 bits
+        -:  330:
+        -:  331:	Here k is a 32-bit integer and T2[] is an integer array 
+        -:  332:	containing correction terms. Now magically the floating
+        -:  333:	value of y (y's leading 32-bit word is y0, the value of
+        -:  334:	its trailing word y1 is set to zero) approximates 1/sqrt(x)
+        -:  335:	to almost 7.8-bit.
+        -:  336:
+        -:  337:	Value of T2:
+        -:  338:	static int T2[64]= {
+        -:  339:	0x1500,	0x2ef8,	0x4d67,	0x6b02,	0x87be,	0xa395,	0xbe7a,	0xd866,
+        -:  340:	0xf14a,	0x1091b,0x11fcd,0x13552,0x14999,0x15c98,0x16e34,0x17e5f,
+        -:  341:	0x18d03,0x19a01,0x1a545,0x1ae8a,0x1b5c4,0x1bb01,0x1bfde,0x1c28d,
+        -:  342:	0x1c2de,0x1c0db,0x1ba73,0x1b11c,0x1a4b5,0x1953d,0x18266,0x16be0,
+        -:  343:	0x1683e,0x179d8,0x18a4d,0x19992,0x1a789,0x1b445,0x1bf61,0x1c989,
+        -:  344:	0x1d16d,0x1d77b,0x1dddf,0x1e2ad,0x1e5bf,0x1e6e8,0x1e654,0x1e3cd,
+        -:  345:	0x1df2a,0x1d635,0x1cb16,0x1be2c,0x1ae4e,0x19bde,0x1868e,0x16e2e,
+        -:  346:	0x1527f,0x1334a,0x11051,0xe951,	0xbe01,	0x8e0d,	0x5924,	0x1edd,};
+        -:  347:
+        -:  348:    (2)	Iterative refinement
+        -:  349:
+        -:  350:	Apply Reciproot iteration three times to y and multiply the
+        -:  351:	result by x to get an approximation z that matches sqrt(x)
+        -:  352:	to about 1 ulp. To be exact, we will have 
+        -:  353:		-1ulp < sqrt(x)-z<1.0625ulp.
+        -:  354:	
+        -:  355:	... set rounding mode to Round-to-nearest
+        -:  356:	   y := y*(1.5-0.5*x*y*y)	... almost 15 sig. bits to 1/sqrt(x)
+        -:  357:	   y := y*((1.5-2^-30)+0.5*x*y*y)... about 29 sig. bits to 1/sqrt(x)
+        -:  358:	... special arrangement for better accuracy
+        -:  359:	   z := x*y			... 29 bits to sqrt(x), with z*y<1
+        -:  360:	   z := z + 0.5*z*(1-z*y)	... about 1 ulp to sqrt(x)
+        -:  361:
+        -:  362:	Remark 2. The constant 1.5-2^-30 is chosen to bias the error so that
+        -:  363:	(a) the term z*y in the final iteration is always less than 1; 
+        -:  364:	(b) the error in the final result is biased upward so that
+        -:  365:		-1 ulp < sqrt(x) - z < 1.0625 ulp
+        -:  366:	    instead of |sqrt(x)-z|<1.03125ulp.
+        -:  367:
+        -:  368:    (3)	Final adjustment
+        -:  369:
+        -:  370:	By twiddling y's last bit it is possible to force y to be 
+        -:  371:	correctly rounded according to the prevailing rounding mode
+        -:  372:	as follows. Let r and i be copies of the rounding mode and
+        -:  373:	inexact flag before entering the square root program. Also we
+        -:  374:	use the expression y+-ulp for the next representable floating
+        -:  375:	numbers (up and down) of y. Note that y+-ulp = either fixed
+        -:  376:	point y+-1, or multiply y by nextafter(1,+-inf) in chopped
+        -:  377:	mode.
+        -:  378:
+        -:  379:	R := RZ;		... set rounding mode to round-toward-zero
+        -:  380:	switch(r) {
+        -:  381:	    case RN:		... round-to-nearest
+        -:  382:	       if(x<= z*(z-ulp)...chopped) z = z - ulp; else
+        -:  383:	       if(x<= z*(z+ulp)...chopped) z = z; else z = z+ulp;
+        -:  384:	       break;
+        -:  385:	    case RZ:case RM:	... round-to-zero or round-to--inf
+        -:  386:	       R:=RP;		... reset rounding mod to round-to-+inf
+        -:  387:	       if(x<z*z ... rounded up) z = z - ulp; else
+        -:  388:	       if(x>=(z+ulp)*(z+ulp) ...rounded up) z = z+ulp;
+        -:  389:	       break;
+        -:  390:	    case RP:		... round-to-+inf
+        -:  391:	       if(x>(z+ulp)*(z+ulp)...chopped) z = z+2*ulp; else
+        -:  392:	       if(x>z*z ...chopped) z = z+ulp;
+        -:  393:	       break;
+        -:  394:	}
+        -:  395:
+        -:  396:	Remark 3. The above comparisons can be done in fixed point. For
+        -:  397:	example, to compare x and w=z*z chopped, it suffices to compare
+        -:  398:	x1 and w1 (the trailing parts of x and w), regarding them as
+        -:  399:	two's complement integers.
+        -:  400:
+        -:  401:	...Is z an exact square root?
+        -:  402:	To determine whether z is an exact square root of x, let z1 be the
+        -:  403:	trailing part of z, and also let x0 and x1 be the leading and
+        -:  404:	trailing parts of x.
+        -:  405:
+        -:  406:	If ((z1&0x03ffffff)!=0)	... not exact if trailing 26 bits of z!=0
+        -:  407:	    I := 1;		... Raise Inexact flag: z is not exact
+        -:  408:	else {
+        -:  409:	    j := 1 - [(x0>>20)&1]	... j = logb(x) mod 2
+        -:  410:	    k := z1 >> 26;		... get z's 25-th and 26-th 
+        -:  411:					    fraction bits
+        -:  412:	    I := i or (k&j) or ((k&(j+j+1))!=(x1&3));
+        -:  413:	}
+        -:  414:	R:= r		... restore rounded mode
+        -:  415:	return sqrt(x):=z.
+        -:  416:
+        -:  417:	If multiplication is cheaper then the foregoing red tape, the 
+        -:  418:	Inexact flag can be evaluated by
+        -:  419:
+        -:  420:	    I := i;
+        -:  421:	    I := (z*z!=x) or I.
+        -:  422:
+        -:  423:	Note that z*z can overwrite I; this value must be sensed if it is 
+        -:  424:	True.
+        -:  425:
+        -:  426:	Remark 4. If z*z = x exactly, then bit 25 to bit 0 of z1 must be
+        -:  427:	zero.
+        -:  428:
+        -:  429:		    --------------------
+        -:  430:		z1: |        f2        | 
+        -:  431:		    --------------------
+        -:  432:		bit 31		   bit 0
+        -:  433:
+        -:  434:	Further more, bit 27 and 26 of z1, bit 0 and 1 of x1, and the odd
+        -:  435:	or even of logb(x) have the following relations:
+        -:  436:
+        -:  437:	-------------------------------------------------
+        -:  438:	bit 27,26 of z1		bit 1,0 of x1	logb(x)
+        -:  439:	-------------------------------------------------
+        -:  440:	00			00		odd and even
+        -:  441:	01			01		even
+        -:  442:	10			10		odd
+        -:  443:	10			00		even
+        -:  444:	11			01		even
+        -:  445:	-------------------------------------------------
+        -:  446:
+        -:  447:    (4)	Special cases (see (4) of Section A).	
+        -:  448: 
+        -:  449: */
+        -:  450: 

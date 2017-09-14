@@ -1,0 +1,11 @@
+cov: cov.c foo.c libm.a
+        gcc $^ -fprofile-arcs -ftest-coverage -o $@
+
+
+clean:
+                rm -f *.gcno *.gcda *.gcov *.bc *.o
+
+ll_diff:
+
+        diff benchs/$(bench)/$(prog).ll benchs/$(bench)/$(prog)_.ll
+.PHONY: gcov stat clean

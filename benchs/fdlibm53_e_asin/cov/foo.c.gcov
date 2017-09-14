@@ -1,0 +1,134 @@
+        -:    0:Source:foo.c
+        -:    0:Graph:foo.gcno
+        -:    0:Data:foo.gcda
+        -:    0:Runs:1
+        -:    0:Programs:1
+        -:    1:
+        -:    2:/* @(#)e_asin.c 1.4 96/03/07 */
+        -:    3:/*
+        -:    4: * ====================================================
+        -:    5: * Copyright (C) 1993 by Sun Microsystems, Inc. All rights reserved.
+        -:    6: *
+        -:    7: * Developed at SunSoft, a Sun Microsystems, Inc. business.
+        -:    8: * Permission to use, copy, modify, and distribute this
+        -:    9: * software is freely granted, provided that this notice 
+        -:   10: * is preserved.
+        -:   11: * ====================================================
+        -:   12: */
+        -:   13:
+        -:   14:/* __ieee754_asin(x)
+        -:   15: * Method :                  
+        -:   16: *	Since  asin(x) = x + x^3/6 + x^5*3/40 + x^7*15/336 + ...
+        -:   17: *	we approximate asin(x) on [0,0.5] by
+        -:   18: *		asin(x) = x + x*x^2*R(x^2)
+        -:   19: *	where
+        -:   20: *		R(x^2) is a rational approximation of (asin(x)-x)/x^3 
+        -:   21: *	and its Remes error is bounded by
+        -:   22: *		|(asin(x)-x)/x^3 - R(x^2)| < 2^(-58.75)
+        -:   23: *
+        -:   24: *	For x in [0.5,1]
+        -:   25: *		asin(x) = pi/2-2*asin(sqrt((1-x)/2))
+        -:   26: *	Let y = (1-x), z = y/2, s := sqrt(z), and pio2_hi+pio2_lo=pi/2;
+        -:   27: *	then for x>0.98
+        -:   28: *		asin(x) = pi/2 - 2*(s+s*z*R(z))
+        -:   29: *			= pio2_hi - (2*(s+s*z*R(z)) - pio2_lo)
+        -:   30: *	For x<=0.98, let pio4_hi = pio2_hi/2, then
+        -:   31: *		f = hi part of s;
+        -:   32: *		c = sqrt(z) - f = (z-f*f)/(s+f) 	...f+c=sqrt(z)
+        -:   33: *	and
+        -:   34: *		asin(x) = pi/2 - 2*(s+s*z*R(z))
+        -:   35: *			= pio4_hi+(pio4-2s)-(2s*z*R(z)-pio2_lo)
+        -:   36: *			= pio4_hi+(pio4-2f)-(2s*z*R(z)-(pio2_lo+2c))
+        -:   37: *
+        -:   38: * Special cases:
+        -:   39: *	if x is NaN, return x itself;
+        -:   40: *	if |x|>1, return NaN with invalid signal.
+        -:   41: *
+        -:   42: */
+        -:   43:
+        -:   44:
+        -:   45:#include "fdlibm.h"
+        -:   46:
+        -:   47:#ifdef __STDC__
+        -:   48:static const double 
+        -:   49:#else
+        -:   50:static double 
+        -:   51:#endif
+        -:   52:one =  1.00000000000000000000e+00, /* 0x3FF00000, 0x00000000 */
+        -:   53:huge =  1.000e+300,
+        -:   54:pio2_hi =  1.57079632679489655800e+00, /* 0x3FF921FB, 0x54442D18 */
+        -:   55:pio2_lo =  6.12323399573676603587e-17, /* 0x3C91A626, 0x33145C07 */
+        -:   56:pio4_hi =  7.85398163397448278999e-01, /* 0x3FE921FB, 0x54442D18 */
+        -:   57:	/* coefficient for R(x^2) */
+        -:   58:pS0 =  1.66666666666666657415e-01, /* 0x3FC55555, 0x55555555 */
+        -:   59:pS1 = -3.25565818622400915405e-01, /* 0xBFD4D612, 0x03EB6F7D */
+        -:   60:pS2 =  2.01212532134862925881e-01, /* 0x3FC9C155, 0x0E884455 */
+        -:   61:pS3 = -4.00555345006794114027e-02, /* 0xBFA48228, 0xB5688F3B */
+        -:   62:pS4 =  7.91534994289814532176e-04, /* 0x3F49EFE0, 0x7501B288 */
+        -:   63:pS5 =  3.47933107596021167570e-05, /* 0x3F023DE1, 0x0DFDF709 */
+        -:   64:qS1 = -2.40339491173441421878e+00, /* 0xC0033A27, 0x1C8A2D4B */
+        -:   65:qS2 =  2.02094576023350569471e+00, /* 0x40002AE5, 0x9C598AC8 */
+        -:   66:qS3 = -6.88283971605453293030e-01, /* 0xBFE6066C, 0x1B8D0159 */
+        -:   67:qS4 =  7.70381505559019352791e-02; /* 0x3FB3B8C5, 0xB12E9282 */
+        -:   68:
+        -:   69:#ifdef __STDC__
+function foo_raw called 67707374 returned 100% blocks executed 28%
+ 67707374:   70:	double foo_raw(double x)
+        -:   71:#else
+        -:   72:	double foo_raw(x)
+        -:   73:	double x;
+        -:   74:#endif
+        -:   75:{
+        -:   76:	double t,w,p,q,c,r,s;
+        -:   77:	int hx,ix;
+ 67707374:   78:	hx = __HI(x);
+ 67707374:   79:	ix = hx&0x7fffffff;
+ 67707374:   80:	if(ix>= 0x3ff00000) {		/* |x|>= 1 */
+branch  0 taken 100% (fallthrough)
+branch  1 taken 0%
+ 67707374:   81:	    if(((ix-0x3ff00000)|__LO(x))==0)
+branch  0 taken 0% (fallthrough)
+branch  1 taken 100%
+        -:   82:		    /* asin(1)=+-pi/2 with inexact */
+    #####:   83:		return x*pio2_hi+x*pio2_lo;	
+ 67707374:   84:	    return (x-x)/(x-x);		/* asin(|x|>1) is NaN */   
+    #####:   85:	} else if (ix<0x3fe00000) {	/* |x|<0.5 */
+branch  0 never executed
+branch  1 never executed
+    #####:   86:	    if(ix<0x3e400000) {		/* if |x| < 2**-27 */
+branch  0 never executed
+branch  1 never executed
+    #####:   87:		if(huge+x>one) return x;/* return x with inexact if x!=0*/
+branch  0 never executed
+branch  1 never executed
+        -:   88:	    } else 
+    #####:   89:		t = x*x;
+    #####:   90:		p = t*(pS0+t*(pS1+t*(pS2+t*(pS3+t*(pS4+t*pS5)))));
+    #####:   91:		q = one+t*(qS1+t*(qS2+t*(qS3+t*qS4)));
+    #####:   92:		w = p/q;
+    #####:   93:		return x+x*w;
+        -:   94:	}
+        -:   95:	/* 1> |x|>= 0.5 */
+    #####:   96:	w = one-fabs(x);
+    #####:   97:	t = w*0.5;
+    #####:   98:	p = t*(pS0+t*(pS1+t*(pS2+t*(pS3+t*(pS4+t*pS5)))));
+    #####:   99:	q = one+t*(qS1+t*(qS2+t*(qS3+t*qS4)));
+    #####:  100:	s = sqrt(t);
+    #####:  101:	if(ix>=0x3FEF3333) { 	/* if |x| > 0.975 */
+branch  0 never executed
+branch  1 never executed
+    #####:  102:	    w = p/q;
+    #####:  103:	    t = pio2_hi-(2.0*(s+s*w)-pio2_lo);
+        -:  104:	} else {
+    #####:  105:	    w  = s;
+    #####:  106:	    __LO(w) = 0;
+    #####:  107:	    c  = (t-w*w)/(s+w);
+    #####:  108:	    r  = p/q;
+    #####:  109:	    p  = 2.0*s*r-(pio2_lo-2.0*c);
+    #####:  110:	    q  = pio4_hi-2.0*w;
+    #####:  111:	    t  = pio4_hi-(p-q);
+        -:  112:	}    
+    #####:  113:	if(hx>0) return t; else return -t;    
+branch  0 never executed
+branch  1 never executed
+        -:  114:}

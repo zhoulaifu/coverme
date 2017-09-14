@@ -1,0 +1,9 @@
+#include "foo_r.h"
+#include <stdio.h>
+
+
+int main (){
+     printf ("foo_r(3.0)=%f (expected, if bench=foo,  16)\n",foo_r(3.0));
+     printf ("foo_r(5.0)=%f (expected, if bench=foo,  4)\n",foo_r(5.0));
+     return 0;
+}

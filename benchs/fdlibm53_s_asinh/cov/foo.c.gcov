@@ -1,0 +1,81 @@
+        -:    0:Source:foo.c
+        -:    0:Graph:foo.gcno
+        -:    0:Data:foo.gcda
+        -:    0:Runs:1
+        -:    0:Programs:1
+        -:    1:
+        -:    2:/* @(#)s_asinh.c 1.3 95/01/18 */
+        -:    3:/*
+        -:    4: * ====================================================
+        -:    5: * Copyright (C) 1993 by Sun Microsystems, Inc. All rights reserved.
+        -:    6: *
+        -:    7: * Developed at SunSoft, a Sun Microsystems, Inc. business.
+        -:    8: * Permission to use, copy, modify, and distribute this
+        -:    9: * software is freely granted, provided that this notice 
+        -:   10: * is preserved.
+        -:   11: * ====================================================
+        -:   12: */
+        -:   13:
+        -:   14:/* asinh(x)
+        -:   15: * Method :
+        -:   16: *	Based on 
+        -:   17: *		asinh(x) = sign(x) * log [ |x| + sqrt(x*x+1) ]
+        -:   18: *	we have
+        -:   19: *	asinh(x) := x  if  1+x*x=1,
+        -:   20: *		 := sign(x)*(log(x)+ln2)) for large |x|, else
+        -:   21: *		 := sign(x)*log(2|x|+1/(|x|+sqrt(x*x+1))) if|x|>2, else
+        -:   22: *		 := sign(x)*log1p(|x| + x^2/(1 + sqrt(1+x^2)))  
+        -:   23: */
+        -:   24:
+        -:   25:#include "fdlibm.h"
+        -:   26:
+        -:   27:#ifdef __STDC__
+        -:   28:static const double 
+        -:   29:#else
+        -:   30:static double 
+        -:   31:#endif
+        -:   32:one =  1.00000000000000000000e+00, /* 0x3FF00000, 0x00000000 */
+        -:   33:ln2 =  6.93147180559945286227e-01, /* 0x3FE62E42, 0xFEFA39EF */
+        -:   34:huge=  1.00000000000000000000e+300; 
+        -:   35:
+        -:   36:#ifdef __STDC__
+function foo_raw called 54949613 returned 100% blocks executed 60%
+ 54949613:   37:	double foo_raw(double x)
+        -:   38:#else
+        -:   39:	double foo_raw(x)
+        -:   40:	double x;
+        -:   41:#endif
+        -:   42:{	
+        -:   43:	double t,w;
+        -:   44:	int hx,ix;
+ 54949613:   45:	hx = __HI(x);
+ 54949613:   46:	ix = hx&0x7fffffff;
+ 54949613:   47:	if(ix>=0x7ff00000) return x+x;	/* x is inf or NaN */
+branch  0 taken 0% (fallthrough)
+branch  1 taken 100%
+ 54949613:   48:	if(ix< 0x3e300000) {	/* |x|<2**-28 */
+branch  0 taken 0% (fallthrough)
+branch  1 taken 100%
+    #####:   49:	    if(huge+x>one) return x;	/* return x inexact except 0 */
+branch  0 never executed
+branch  1 never executed
+        -:   50:	} 
+ 54949613:   51:	if(ix>0x41b00000) {	/* |x| > 2**28 */
+branch  0 taken 100% (fallthrough)
+branch  1 taken 0%
+ 54949613:   52:	    w = __ieee754_log(fabs(x))+ln2;
+call    0 returned 100%
+    #####:   53:	} else if (ix>0x40000000) {	/* 2**28 > |x| > 2.0 */
+branch  0 never executed
+branch  1 never executed
+    #####:   54:	    t = fabs(x);
+    #####:   55:	    w = __ieee754_log(2.0*t+one/(sqrt(x*x+one)+t));
+call    0 never executed
+        -:   56:	} else {		/* 2.0 > |x| > 2**-28 */
+    #####:   57:	    t = x*x;
+    #####:   58:	    w =log1p(fabs(x)+t/(one+sqrt(one+t)));
+        -:   59:	}
+ 54949613:   60:	if(hx>0) return w; else return -w;
+branch  0 taken 50% (fallthrough)
+branch  1 taken 50%
+        -:   61:}

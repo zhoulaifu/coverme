@@ -1,0 +1,11 @@
+#include "foo_r.h"
+#include <stdio.h>
+
+
+int main (){
+  double x = 3.0;
+  
+     printf ("foo_r(3.0)=%f",foo_r(x));
+     //     printf ("foo_r(5.0)=%f (expected, if bench=foo,  4)\n",foo_r(5.0));
+     return 0;
+}

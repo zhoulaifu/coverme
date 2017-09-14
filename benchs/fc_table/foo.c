@@ -1,0 +1,19 @@
+
+//adapted from p16, K&R C book
+
+/* print Fahrenheit-Celsius table */ 
+#include <stdio.h>
+#include "foo.h"
+void foo(int upto_fahr)
+{
+  int fahr;
+  for (fahr = 0; fahr <= upto_fahr; fahr = fahr + 20) 
+    printf("%3d %6.1f\n", fahr, (5.0/9.0)*(fahr-32));
+  return;
+}
+
+
+int main(){
+  foo(210);
+  return 0;
+}

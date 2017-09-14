@@ -1,0 +1,263 @@
+        -:    0:Source:foo.c
+        -:    0:Graph:foo.gcno
+        -:    0:Data:foo.gcda
+        -:    0:Runs:1
+        -:    0:Programs:1
+        -:    1:
+        -:    2:/* @(#)s_expm1.c 1.5 04/04/22 */
+        -:    3:/*
+        -:    4: * ====================================================
+        -:    5: * Copyright (C) 2004 by Sun Microsystems, Inc. All rights reserved.
+        -:    6: *
+        -:    7: * Permission to use, copy, modify, and distribute this
+        -:    8: * software is freely granted, provided that this notice 
+        -:    9: * is preserved.
+        -:   10: * ====================================================
+        -:   11: */
+        -:   12:
+        -:   13:/* expm1(x)
+        -:   14: * Returns exp(x)-1, the exponential of x minus 1.
+        -:   15: *
+        -:   16: * Method
+        -:   17: *   1. Argument reduction:
+        -:   18: *	Given x, find r and integer k such that
+        -:   19: *
+        -:   20: *               x = k*ln2 + r,  |r| <= 0.5*ln2 ~ 0.34658  
+        -:   21: *
+        -:   22: *      Here a correction term c will be computed to compensate 
+        -:   23: *	the error in r when rounded to a floating-point number.
+        -:   24: *
+        -:   25: *   2. Approximating expm1(r) by a special rational function on
+        -:   26: *	the interval [0,0.34658]:
+        -:   27: *	Since
+        -:   28: *	    r*(exp(r)+1)/(exp(r)-1) = 2+ r^2/6 - r^4/360 + ...
+        -:   29: *	we define R1(r*r) by
+        -:   30: *	    r*(exp(r)+1)/(exp(r)-1) = 2+ r^2/6 * R1(r*r)
+        -:   31: *	That is,
+        -:   32: *	    R1(r**2) = 6/r *((exp(r)+1)/(exp(r)-1) - 2/r)
+        -:   33: *		     = 6/r * ( 1 + 2.0*(1/(exp(r)-1) - 1/r))
+        -:   34: *		     = 1 - r^2/60 + r^4/2520 - r^6/100800 + ...
+        -:   35: *      We use a special Remes algorithm on [0,0.347] to generate 
+        -:   36: * 	a polynomial of degree 5 in r*r to approximate R1. The 
+        -:   37: *	maximum error of this polynomial approximation is bounded 
+        -:   38: *	by 2**-61. In other words,
+        -:   39: *	    R1(z) ~ 1.0 + Q1*z + Q2*z**2 + Q3*z**3 + Q4*z**4 + Q5*z**5
+        -:   40: *	where 	Q1  =  -1.6666666666666567384E-2,
+        -:   41: * 		Q2  =   3.9682539681370365873E-4,
+        -:   42: * 		Q3  =  -9.9206344733435987357E-6,
+        -:   43: * 		Q4  =   2.5051361420808517002E-7,
+        -:   44: * 		Q5  =  -6.2843505682382617102E-9;
+        -:   45: *  	(where z=r*r, and the values of Q1 to Q5 are listed below)
+        -:   46: *	with error bounded by
+        -:   47: *	    |                  5           |     -61
+        -:   48: *	    | 1.0+Q1*z+...+Q5*z   -  R1(z) | <= 2 
+        -:   49: *	    |                              |
+        -:   50: *	
+        -:   51: *	expm1(r) = exp(r)-1 is then computed by the following 
+        -:   52: * 	specific way which minimize the accumulation rounding error: 
+        -:   53: *			       2     3
+        -:   54: *			      r     r    [ 3 - (R1 + R1*r/2)  ]
+        -:   55: *	      expm1(r) = r + --- + --- * [--------------------]
+        -:   56: *		              2     2    [ 6 - r*(3 - R1*r/2) ]
+        -:   57: *	
+        -:   58: *	To compensate the error in the argument reduction, we use
+        -:   59: *		expm1(r+c) = expm1(r) + c + expm1(r)*c 
+        -:   60: *			   ~ expm1(r) + c + r*c 
+        -:   61: *	Thus c+r*c will be added in as the correction terms for
+        -:   62: *	expm1(r+c). Now rearrange the term to avoid optimization 
+        -:   63: * 	screw up:
+        -:   64: *		        (      2                                    2 )
+        -:   65: *		        ({  ( r    [ R1 -  (3 - R1*r/2) ]  )  }    r  )
+        -:   66: *	 expm1(r+c)~r - ({r*(--- * [--------------------]-c)-c} - --- )
+        -:   67: *	                ({  ( 2    [ 6 - r*(3 - R1*r/2) ]  )  }    2  )
+        -:   68: *                      (                                             )
+        -:   69: *    	
+        -:   70: *		   = r - E
+        -:   71: *   3. Scale back to obtain expm1(x):
+        -:   72: *	From step 1, we have
+        -:   73: *	   expm1(x) = either 2^k*[expm1(r)+1] - 1
+        -:   74: *		    = or     2^k*[expm1(r) + (1-2^-k)]
+        -:   75: *   4. Implementation notes:
+        -:   76: *	(A). To save one multiplication, we scale the coefficient Qi
+        -:   77: *	     to Qi*2^i, and replace z by (x^2)/2.
+        -:   78: *	(B). To achieve maximum accuracy, we compute expm1(x) by
+        -:   79: *	  (i)   if x < -56*ln2, return -1.0, (raise inexact if x!=inf)
+        -:   80: *	  (ii)  if k=0, return r-E
+        -:   81: *	  (iii) if k=-1, return 0.5*(r-E)-0.5
+        -:   82: *        (iv)	if k=1 if r < -0.25, return 2*((r+0.5)- E)
+        -:   83: *	       	       else	     return  1.0+2.0*(r-E);
+        -:   84: *	  (v)   if (k<-2||k>56) return 2^k(1-(E-r)) - 1 (or exp(x)-1)
+        -:   85: *	  (vi)  if k <= 20, return 2^k((1-2^-k)-(E-r)), else
+        -:   86: *	  (vii) return 2^k(1-((E+2^-k)-r)) 
+        -:   87: *
+        -:   88: * Special cases:
+        -:   89: *	expm1(INF) is INF, expm1(NaN) is NaN;
+        -:   90: *	expm1(-INF) is -1, and
+        -:   91: *	for finite argument, only expm1(0)=0 is exact.
+        -:   92: *
+        -:   93: * Accuracy:
+        -:   94: *	according to an error analysis, the error is always less than
+        -:   95: *	1 ulp (unit in the last place).
+        -:   96: *
+        -:   97: * Misc. info.
+        -:   98: *	For IEEE double 
+        -:   99: *	    if x >  7.09782712893383973096e+02 then expm1(x) overflow
+        -:  100: *
+        -:  101: * Constants:
+        -:  102: * The hexadecimal values are the intended ones for the following 
+        -:  103: * constants. The decimal values may be used, provided that the 
+        -:  104: * compiler will convert from decimal to binary accurately enough
+        -:  105: * to produce the hexadecimal values shown.
+        -:  106: */
+        -:  107:
+        -:  108:#include "fdlibm.h"
+        -:  109:
+        -:  110:#ifdef __STDC__
+        -:  111:static const double
+        -:  112:#else
+        -:  113:static double
+        -:  114:#endif
+        -:  115:one		= 1.0,
+        -:  116:huge		= 1.0e+300,
+        -:  117:tiny		= 1.0e-300,
+        -:  118:o_threshold	= 7.09782712893383973096e+02,/* 0x40862E42, 0xFEFA39EF */
+        -:  119:ln2_hi		= 6.93147180369123816490e-01,/* 0x3fe62e42, 0xfee00000 */
+        -:  120:ln2_lo		= 1.90821492927058770002e-10,/* 0x3dea39ef, 0x35793c76 */
+        -:  121:invln2		= 1.44269504088896338700e+00,/* 0x3ff71547, 0x652b82fe */
+        -:  122:	/* scaled coefficients related to expm1 */
+        -:  123:Q1  =  -3.33333333333331316428e-02, /* BFA11111 111110F4 */
+        -:  124:Q2  =   1.58730158725481460165e-03, /* 3F5A01A0 19FE5585 */
+        -:  125:Q3  =  -7.93650757867487942473e-05, /* BF14CE19 9EAADBB7 */
+        -:  126:Q4  =   4.00821782732936239552e-06, /* 3ED0CFCA 86E65239 */
+        -:  127:Q5  =  -2.01099218183624371326e-07; /* BE8AFDB7 6E09C32D */
+        -:  128:
+        -:  129:#ifdef __STDC__
+function foo_raw called 14768692 returned 100% blocks executed 27%
+ 14768692:  130:	double foo_raw(double x)
+        -:  131:#else
+        -:  132:	double foo_raw(x)
+        -:  133:	double x;
+        -:  134:#endif
+        -:  135:{
+        -:  136:	double y,hi,lo,c,t,e,hxs,hfx,r1;
+        -:  137:	int k,xsb;
+        -:  138:	unsigned hx;
+        -:  139:
+ 14768692:  140:	hx  = __HI(x);	/* high word of x */
+ 14768692:  141:	xsb = hx&0x80000000;		/* sign bit of x */
+ 14768692:  142:	if(xsb==0) y=x; else y= -x;	/* y = |x| */
+branch  0 taken 50% (fallthrough)
+branch  1 taken 50%
+ 14768692:  143:	hx &= 0x7fffffff;		/* high word of |x| */
+        -:  144:
+        -:  145:    /* filter out huge and non-finite argument */
+ 14768692:  146:	if(hx >= 0x4043687A) {			/* if |x|>=56*ln2 */
+branch  0 taken 100% (fallthrough)
+branch  1 taken 0%
+ 14768692:  147:	    if(hx >= 0x40862E42) {		/* if |x|>=709.78... */
+branch  0 taken 100% (fallthrough)
+branch  1 taken 0%
+ 14768692:  148:                if(hx>=0x7ff00000) {
+branch  0 taken 0% (fallthrough)
+branch  1 taken 100%
+    #####:  149:		    if(((hx&0xfffff)|__LO(x))!=0) 
+branch  0 never executed
+branch  1 never executed
+    #####:  150:		         return x+x; 	 /* NaN */
+    #####:  151:		    else return (xsb==0)? x:-1.0;/* exp(+-inf)={inf,-1} */
+branch  0 never executed
+branch  1 never executed
+        -:  152:	        }
+ 14768692:  153:	        if(x > o_threshold) return huge*huge; /* overflow */
+branch  0 taken 50% (fallthrough)
+branch  1 taken 50%
+        -:  154:	    }
+  7385271:  155:	    if(xsb!=0) { /* x < -56*ln2, return -1.0 with inexact */
+branch  0 taken 100% (fallthrough)
+branch  1 taken 0%
+  7385271:  156:		if(x+tiny<0.0)		/* raise inexact */
+branch  0 taken 100% (fallthrough)
+branch  1 taken 0%
+  7385271:  157:		return tiny-one;	/* return -1 */
+        -:  158:	    }
+        -:  159:	}
+        -:  160:
+        -:  161:    /* argument reduction */
+    #####:  162:	if(hx > 0x3fd62e42) {		/* if  |x| > 0.5 ln2 */ 
+branch  0 never executed
+branch  1 never executed
+    #####:  163:	    if(hx < 0x3FF0A2B2) {	/* and |x| < 1.5 ln2 */
+branch  0 never executed
+branch  1 never executed
+    #####:  164:		if(xsb==0)
+branch  0 never executed
+branch  1 never executed
+    #####:  165:		    {hi = x - ln2_hi; lo =  ln2_lo;  k =  1;}
+        -:  166:		else
+    #####:  167:		    {hi = x + ln2_hi; lo = -ln2_lo;  k = -1;}
+        -:  168:	    } else {
+    #####:  169:		k  = invln2*x+((xsb==0)?0.5:-0.5);
+branch  0 never executed
+branch  1 never executed
+    #####:  170:		t  = k;
+    #####:  171:		hi = x - t*ln2_hi;	/* t*ln2_hi is exact here */
+    #####:  172:		lo = t*ln2_lo;
+        -:  173:	    }
+    #####:  174:	    x  = hi - lo;
+    #####:  175:	    c  = (hi-x)-lo;
+        -:  176:	} 
+    #####:  177:	else if(hx < 0x3c900000) {  	/* when |x|<2**-54, return x */
+branch  0 never executed
+branch  1 never executed
+    #####:  178:	    t = huge+x;	/* return x with inexact flags when x!=0 */
+    #####:  179:	    return x - (t-(huge+x));	
+        -:  180:	}
+    #####:  181:	else k = 0;
+        -:  182:
+        -:  183:    /* x is now in primary range */
+    #####:  184:	hfx = 0.5*x;
+    #####:  185:	hxs = x*hfx;
+    #####:  186:	r1 = one+hxs*(Q1+hxs*(Q2+hxs*(Q3+hxs*(Q4+hxs*Q5))));
+    #####:  187:	t  = 3.0-r1*hfx;
+    #####:  188:	e  = hxs*((r1-t)/(6.0 - x*t));
+    #####:  189:	if(k==0) return x - (x*e-hxs);		/* c is 0 */
+branch  0 never executed
+branch  1 never executed
+        -:  190:	else {
+    #####:  191:	    e  = (x*(e-c)-c);
+    #####:  192:	    e -= hxs;
+    #####:  193:	    if(k== -1) return 0.5*(x-e)-0.5;
+branch  0 never executed
+branch  1 never executed
+    #####:  194:	    if(k==1) 
+branch  0 never executed
+branch  1 never executed
+    #####:  195:	       	if(x < -0.25) return -2.0*(e-(x+0.5));
+branch  0 never executed
+branch  1 never executed
+    #####:  196:	       	else 	      return  one+2.0*(x-e);
+    #####:  197:	    if (k <= -2 || k>56) {   /* suffice to return exp(x)-1 */
+branch  0 never executed
+branch  1 never executed
+branch  2 never executed
+branch  3 never executed
+    #####:  198:	        y = one-(e-x);
+    #####:  199:	        __HI(y) += (k<<20);	/* add k to y's exponent */
+    #####:  200:	        return y-one;
+        -:  201:	    }
+    #####:  202:	    t = one;
+    #####:  203:	    if(k<20) {
+branch  0 never executed
+branch  1 never executed
+    #####:  204:	       	__HI(t) = 0x3ff00000 - (0x200000>>k);  /* t=1-2^-k */
+    #####:  205:	       	y = t-(e-x);
+    #####:  206:	       	__HI(y) += (k<<20);	/* add k to y's exponent */
+        -:  207:	   } else {
+    #####:  208:	       	__HI(t)  = ((0x3ff-k)<<20);	/* 2^-k */
+    #####:  209:	       	y = x-(e+t);
+    #####:  210:	       	y += one;
+    #####:  211:	       	__HI(y) += (k<<20);	/* add k to y's exponent */
+        -:  212:	    }
+        -:  213:	}
+    #####:  214:	return y;
+        -:  215:}

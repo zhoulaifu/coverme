@@ -1,0 +1,1 @@
+/home/parallels/projects_kdevelop/BVA/ATG-MO/_depre/CMakeFiles/hello.dir

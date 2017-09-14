@@ -1,0 +1,63 @@
+        -:    0:Source:foo.c
+        -:    0:Graph:foo.gcno
+        -:    0:Data:foo.gcda
+        -:    0:Runs:1
+        -:    0:Programs:1
+        -:    1:
+        -:    2:/* @(#)s_ilogb.c 1.3 95/01/18 */
+        -:    3:/*
+        -:    4: * ====================================================
+        -:    5: * Copyright (C) 1993 by Sun Microsystems, Inc. All rights reserved.
+        -:    6: *
+        -:    7: * Developed at SunSoft, a Sun Microsystems, Inc. business.
+        -:    8: * Permission to use, copy, modify, and distribute this
+        -:    9: * software is freely granted, provided that this notice 
+        -:   10: * is preserved.
+        -:   11: * ====================================================
+        -:   12: */
+        -:   13:
+        -:   14:/* ilogb(double x)
+        -:   15: * return the binary exponent of non-zero x
+        -:   16: * ilogb(0) = 0x80000001
+        -:   17: * ilogb(inf/NaN) = 0x7fffffff (no signal is raised)
+        -:   18: */
+        -:   19:
+        -:   20:#include "fdlibm.h"
+        -:   21:#define __LITTLE_ENDIAN
+        -:   22:#include <stdio.h>
+        -:   23:
+        -:   24:
+function foo_raw called 72333132 returned 100% blocks executed 27%
+ 72333132:   25:	int foo_raw(double x)
+        -:   26:
+        -:   27:{
+        -:   28:	int hx,lx,ix;
+        -:   29:
+ 72333132:   30:	hx  = (__HI(x))&0x7fffffff;	/* high word of x */
+ 72333132:   31:	if(hx<0x00100000) {
+branch  0 taken 0% (fallthrough)
+branch  1 taken 100%
+    #####:   32:	    lx = __LO(x);
+    #####:   33:	    if((hx|lx)==0) 
+branch  0 never executed
+branch  1 never executed
+    #####:   34:		return 0x80000001;	/* ilogb(0) = 0x80000001 */
+        -:   35:	    else			/* subnormal x */
+    #####:   36:		if(hx==0) {
+branch  0 never executed
+branch  1 never executed
+    #####:   37:		    for (ix = -1043; lx>0; lx<<=1) ix -=1;
+branch  0 never executed
+branch  1 never executed
+        -:   38:		} else {
+    #####:   39:		    for (ix = -1022,hx<<=11; hx>0; hx<<=1) ix -=1;
+branch  0 never executed
+branch  1 never executed
+        -:   40:		}
+    #####:   41:	    return ix;
+        -:   42:	}
+ 72333132:   43:	else if (hx<0x7ff00000) return (hx>>20)-1023;
+branch  0 taken 100% (fallthrough)
+branch  1 taken 0%
+    #####:   44:	else return 0x7fffffff;
+        -:   45:}

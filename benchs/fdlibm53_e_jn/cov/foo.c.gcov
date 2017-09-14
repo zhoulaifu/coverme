@@ -1,0 +1,353 @@
+        -:    0:Source:foo.c
+        -:    0:Graph:foo.gcno
+        -:    0:Data:foo.gcda
+        -:    0:Runs:1
+        -:    0:Programs:1
+        -:    1:
+        -:    2:/* @(#)e_jn.c 1.4 95/01/18 */
+        -:    3:/*
+        -:    4: * ====================================================
+        -:    5: * Copyright (C) 1993 by Sun Microsystems, Inc. All rights reserved.
+        -:    6: *
+        -:    7: * Developed at SunSoft, a Sun Microsystems, Inc. business.
+        -:    8: * Permission to use, copy, modify, and distribute this
+        -:    9: * software is freely granted, provided that this notice 
+        -:   10: * is preserved.
+        -:   11: * ====================================================
+        -:   12: */
+        -:   13:
+        -:   14:/*
+        -:   15: * __ieee754_jn(n, x), __ieee754_yn(n, x)
+        -:   16: * floating point Bessel's function of the 1st and 2nd kind
+        -:   17: * of order n
+        -:   18: *          
+        -:   19: * Special cases:
+        -:   20: *	y0(0)=y1(0)=yn(n,0) = -inf with division by zero signal;
+        -:   21: *	y0(-ve)=y1(-ve)=yn(n,-ve) are NaN with invalid signal.
+        -:   22: * Note 2. About jn(n,x), yn(n,x)
+        -:   23: *	For n=0, j0(x) is called,
+        -:   24: *	for n=1, j1(x) is called,
+        -:   25: *	for n<x, forward recursion us used starting
+        -:   26: *	from values of j0(x) and j1(x).
+        -:   27: *	for n>x, a continued fraction approximation to
+        -:   28: *	j(n,x)/j(n-1,x) is evaluated and then backward
+        -:   29: *	recursion is used starting from a supposed value
+        -:   30: *	for j(n,x). The resulting value of j(0,x) is
+        -:   31: *	compared with the actual value to correct the
+        -:   32: *	supposed value of j(n,x).
+        -:   33: *
+        -:   34: *	yn(n,x) is similar in all respects, except
+        -:   35: *	that forward recursion is used for all
+        -:   36: *	values of n>1.
+        -:   37: *	
+        -:   38: */
+        -:   39:
+        -:   40:#include "fdlibm.h"
+        -:   41:
+        -:   42:#ifdef __STDC__
+        -:   43:static const double
+        -:   44:#else
+        -:   45:static double
+        -:   46:#endif
+        -:   47:invsqrtpi=  5.64189583547756279280e-01, /* 0x3FE20DD7, 0x50429B6D */
+        -:   48:two   =  2.00000000000000000000e+00, /* 0x40000000, 0x00000000 */
+        -:   49:one   =  1.00000000000000000000e+00; /* 0x3FF00000, 0x00000000 */
+        -:   50:
+        -:   51:static double zero  =  0.00000000000000000000e+00;
+        -:   52:
+        -:   53:#ifdef __STDC__
+function foo_raw called 237872 returned 100% blocks executed 25%
+   237872:   54:	double foo_raw(int n, double x)
+        -:   55:#else
+        -:   56:	double foo_raw(n,x)
+        -:   57:	int n; double x;
+        -:   58:#endif
+        -:   59:{
+        -:   60:	int i,hx,ix,lx, sgn;
+        -:   61:	double a, b, temp, di;
+        -:   62:	double z, w;
+        -:   63:
+        -:   64:    /* J(-n,x) = (-1)^n * J(n, x), J(n, -x) = (-1)^n * J(n, x)
+        -:   65:     * Thus, J(-n,x) = J(n,-x)
+        -:   66:     */
+   237872:   67:	hx = __HI(x);
+   237872:   68:	ix = 0x7fffffff&hx;
+   237872:   69:	lx = __LO(x);
+        -:   70:    /* if J(n,NaN) is NaN */
+   237872:   71:	if((ix|((unsigned)(lx|-lx))>>31)>0x7ff00000) return x+x;
+branch  0 taken 0% (fallthrough)
+branch  1 taken 100%
+   237872:   72:	if(n<0){		
+branch  0 taken 100% (fallthrough)
+branch  1 taken 0%
+   237872:   73:		n = -n;
+   237872:   74:		x = -x;
+   237872:   75:		hx ^= 0x80000000;
+        -:   76:	}
+   237872:   77:	if(n==0) return(__ieee754_j0(x));
+branch  0 taken 0% (fallthrough)
+branch  1 taken 100%
+call    2 never executed
+   237872:   78:	if(n==1) return(__ieee754_j1(x));
+branch  0 taken 0% (fallthrough)
+branch  1 taken 100%
+call    2 never executed
+   237872:   79:	sgn = (n&1)&(hx>>31);	/* even n -- 0, odd n -- sign(x) */
+   237872:   80:	x = fabs(x);
+   237872:   81:	if((ix|lx)==0||ix>=0x7ff00000) 	/* if x is 0 or inf */
+branch  0 taken 100% (fallthrough)
+branch  1 taken 0%
+branch  2 taken 0% (fallthrough)
+branch  3 taken 100%
+    #####:   82:	    b = zero;
+   237872:   83:	else if((double)n<=x) {   
+branch  0 taken 100% (fallthrough)
+branch  1 taken 0%
+        -:   84:		/* Safe to use J(n+1,x)=2n/x *J(n,x)-J(n-1,x) */
+   237872:   85:	    if(ix>=0x52D00000) { /* x > 2**302 */
+branch  0 taken 0% (fallthrough)
+branch  1 taken 100%
+        -:   86:    /* (x >> n**2) 
+        -:   87:     *	    Jn(x) = cos(x-(2n+1)*pi/4)*sqrt(2/x*pi)
+        -:   88:     *	    Yn(x) = sin(x-(2n+1)*pi/4)*sqrt(2/x*pi)
+        -:   89:     *	    Let s=sin(x), c=cos(x), 
+        -:   90:     *		xn=x-(2n+1)*pi/4, sqt2 = sqrt(2),then
+        -:   91:     *
+        -:   92:     *		   n	sin(xn)*sqt2	cos(xn)*sqt2
+        -:   93:     *		----------------------------------
+        -:   94:     *		   0	 s-c		 c+s
+        -:   95:     *		   1	-s-c 		-c+s
+        -:   96:     *		   2	-s+c		-c-s
+        -:   97:     *		   3	 s+c		 c-s
+        -:   98:     */
+        -:   99:              /*ME
+        -:  100:              switch(n&3) {
+        -:  101:		    case 0: temp =  cos(x)+sin(x); break;
+        -:  102:		    case 1: temp = -cos(x)+sin(x); break;
+        -:  103:		    case 2: temp = -cos(x)-sin(x); break;
+        -:  104:		    case 3: temp =  cos(x)-sin(x); break;
+        -:  105:		}
+        -:  106:		b = invsqrtpi*temp/sqrt(x);
+        -:  107:              */
+        -:  108:	    } else {	
+    #####:  109:	        a = __ieee754_j0(x);
+call    0 never executed
+    #####:  110:	        b = __ieee754_j1(x);
+call    0 never executed
+    #####:  111:	        for(i=1;i<n;i++){
+branch  0 never executed
+branch  1 never executed
+    #####:  112:		    temp = b;
+    #####:  113:		    b = b*((double)(i+i)/x) - a; /* avoid underflow */
+    #####:  114:		    a = temp;
+        -:  115:	        }
+        -:  116:	    }
+        -:  117:	} else {
+    #####:  118:	    if(ix<0x3e100000) {	/* x < 2**-29 */
+branch  0 never executed
+branch  1 never executed
+        -:  119:    /* x is tiny, return the first Taylor expansion of J(n,x) 
+        -:  120:     * J(n,x) = 1/n!*(x/2)^n  - ...
+        -:  121:     */
+    #####:  122:		if(n>33)	/* underflow */
+branch  0 never executed
+branch  1 never executed
+    #####:  123:		    b = zero;
+        -:  124:		else {
+    #####:  125:		    temp = x*0.5; b = temp;
+    #####:  126:		    for (a=one,i=2;i<=n;i++) {
+branch  0 never executed
+branch  1 never executed
+    #####:  127:			a *= (double)i;		/* a = n! */
+    #####:  128:			b *= temp;		/* b = (x/2)^n */
+        -:  129:		    }
+    #####:  130:		    b = b/a;
+        -:  131:		}
+        -:  132:	    } else {
+        -:  133:		/* use backward recurrence */
+        -:  134:		/* 			x      x^2      x^2       
+        -:  135:		 *  J(n,x)/J(n-1,x) =  ----   ------   ------   .....
+        -:  136:		 *			2n  - 2(n+1) - 2(n+2)
+        -:  137:		 *
+        -:  138:		 * 			1      1        1       
+        -:  139:		 *  (for large x)   =  ----  ------   ------   .....
+        -:  140:		 *			2n   2(n+1)   2(n+2)
+        -:  141:		 *			-- - ------ - ------ - 
+        -:  142:		 *			 x     x         x
+        -:  143:		 *
+        -:  144:		 * Let w = 2n/x and h=2/x, then the above quotient
+        -:  145:		 * is equal to the continued fraction:
+        -:  146:		 *		    1
+        -:  147:		 *	= -----------------------
+        -:  148:		 *		       1
+        -:  149:		 *	   w - -----------------
+        -:  150:		 *			  1
+        -:  151:		 * 	        w+h - ---------
+        -:  152:		 *		       w+2h - ...
+        -:  153:		 *
+        -:  154:		 * To determine how many terms needed, let
+        -:  155:		 * Q(0) = w, Q(1) = w(w+h) - 1,
+        -:  156:		 * Q(k) = (w+k*h)*Q(k-1) - Q(k-2),
+        -:  157:		 * When Q(k) > 1e4	good for single 
+        -:  158:		 * When Q(k) > 1e9	good for double 
+        -:  159:		 * When Q(k) > 1e17	good for quadruple 
+        -:  160:		 */
+        -:  161:	    /* determine k */
+        -:  162:		double t,v;
+        -:  163:		double q0,q1,h,tmp; int k,m;
+    #####:  164:		w  = (n+n)/(double)x; h = 2.0/(double)x;
+    #####:  165:		q0 = w;  z = w+h; q1 = w*z - 1.0; k=1;
+    #####:  166:		while(q1<1.0e9) {
+branch  0 never executed
+branch  1 never executed
+    #####:  167:			k += 1; z += h;
+    #####:  168:			tmp = z*q1 - q0;
+    #####:  169:			q0 = q1;
+    #####:  170:			q1 = tmp;
+        -:  171:		}
+    #####:  172:		m = n+n;
+    #####:  173:		for(t=zero, i = 2*(n+k); i>=m; i -= 2) t = one/(i/x-t);
+branch  0 never executed
+branch  1 never executed
+    #####:  174:		a = t;
+    #####:  175:		b = one;
+        -:  176:		/*  estimate log((2/x)^n*n!) = n*log(2/x)+n*ln(n)
+        -:  177:		 *  Hence, if n*(log(2n/x)) > ...
+        -:  178:		 *  single 8.8722839355e+01
+        -:  179:		 *  double 7.09782712893383973096e+02
+        -:  180:		 *  long double 1.1356523406294143949491931077970765006170e+04
+        -:  181:		 *  then recurrent value may overflow and the result is 
+        -:  182:		 *  likely underflow to zero
+        -:  183:		 */
+    #####:  184:		tmp = n;
+    #####:  185:		v = two/x;
+    #####:  186:		tmp = tmp*__ieee754_log(fabs(v*tmp));
+call    0 never executed
+    #####:  187:		if(tmp<7.09782712893383973096e+02) {
+branch  0 never executed
+branch  1 never executed
+    #####:  188:	    	    for(i=n-1,di=(double)(i+i);i>0;i--){
+branch  0 never executed
+branch  1 never executed
+    #####:  189:		        temp = b;
+    #####:  190:			b *= di;
+    #####:  191:			b  = b/x - a;
+    #####:  192:		        a = temp;
+    #####:  193:			di -= two;
+        -:  194:	     	    }
+        -:  195:		} else {
+    #####:  196:	    	    for(i=n-1,di=(double)(i+i);i>0;i--){
+branch  0 never executed
+branch  1 never executed
+    #####:  197:		        temp = b;
+    #####:  198:			b *= di;
+    #####:  199:			b  = b/x - a;
+    #####:  200:		        a = temp;
+    #####:  201:			di -= two;
+        -:  202:		    /* scale b to avoid spurious overflow */
+    #####:  203:			if(b>1e100) {
+branch  0 never executed
+branch  1 never executed
+    #####:  204:			    a /= b;
+    #####:  205:			    t /= b;
+    #####:  206:			    b  = one;
+        -:  207:			}
+        -:  208:	     	    }
+        -:  209:		}
+    #####:  210:	    	b = (t*__ieee754_j0(x)/b);
+call    0 never executed
+        -:  211:	    }
+        -:  212:	}
+   237872:  213:	if(sgn==1) return -b; else return b;
+branch  0 taken 0% (fallthrough)
+branch  1 taken 100%
+        -:  214:}
+        -:  215:
+        -:  216:#ifdef __STDC__
+function __ieee754_yn called 0 returned 0% blocks executed 0%
+    #####:  217:	double __ieee754_yn(int n, double x) 
+        -:  218:#else
+        -:  219:	double __ieee754_yn(n,x) 
+        -:  220:	int n; double x;
+        -:  221:#endif
+        -:  222:{
+        -:  223:	int i,hx,ix,lx;
+        -:  224:	int sign;
+        -:  225:	double a, b, temp;
+        -:  226:
+    #####:  227:	hx = __HI(x);
+    #####:  228:	ix = 0x7fffffff&hx;
+    #####:  229:	lx = __LO(x);
+        -:  230:    /* if Y(n,NaN) is NaN */
+    #####:  231:	if((ix|((unsigned)(lx|-lx))>>31)>0x7ff00000) return x+x;
+branch  0 never executed
+branch  1 never executed
+    #####:  232:	if((ix|lx)==0) return -one/zero;
+branch  0 never executed
+branch  1 never executed
+    #####:  233:	if(hx<0) return zero/zero;
+branch  0 never executed
+branch  1 never executed
+    #####:  234:	sign = 1;
+    #####:  235:	if(n<0){
+branch  0 never executed
+branch  1 never executed
+    #####:  236:		n = -n;
+    #####:  237:		sign = 1 - ((n&1)<<1);
+        -:  238:	}
+    #####:  239:	if(n==0) return(__ieee754_y0(x));
+branch  0 never executed
+branch  1 never executed
+call    2 never executed
+    #####:  240:	if(n==1) return(sign*__ieee754_y1(x));
+branch  0 never executed
+branch  1 never executed
+call    2 never executed
+    #####:  241:	if(ix==0x7ff00000) return zero;
+branch  0 never executed
+branch  1 never executed
+    #####:  242:	if(ix>=0x52D00000) { /* x > 2**302 */
+branch  0 never executed
+branch  1 never executed
+        -:  243:    /* (x >> n**2) 
+        -:  244:     *	    Jn(x) = cos(x-(2n+1)*pi/4)*sqrt(2/x*pi)
+        -:  245:     *	    Yn(x) = sin(x-(2n+1)*pi/4)*sqrt(2/x*pi)
+        -:  246:     *	    Let s=sin(x), c=cos(x), 
+        -:  247:     *		xn=x-(2n+1)*pi/4, sqt2 = sqrt(2),then
+        -:  248:     *
+        -:  249:     *		   n	sin(xn)*sqt2	cos(xn)*sqt2
+        -:  250:     *		----------------------------------
+        -:  251:     *		   0	 s-c		 c+s
+        -:  252:     *		   1	-s-c 		-c+s
+        -:  253:     *		   2	-s+c		-c-s
+        -:  254:     *		   3	 s+c		 c-s
+        -:  255:     */
+        -:  256:          /*ME
+        -:  257:		switch(n&3) {
+        -:  258:		    case 0: temp =  sin(x)-cos(x); break;
+        -:  259:		    case 1: temp = -sin(x)-cos(x); break;
+        -:  260:		    case 2: temp = -sin(x)+cos(x); break;
+        -:  261:		    case 3: temp =  sin(x)+cos(x); break;
+        -:  262:		}
+        -:  263:		b = invsqrtpi*temp/sqrt(x);
+        -:  264:          */
+        -:  265:	} else {
+    #####:  266:	    a = __ieee754_y0(x);
+call    0 never executed
+    #####:  267:	    b = __ieee754_y1(x);
+call    0 never executed
+        -:  268:	/* quit if b is -inf */
+    #####:  269:	    for(i=1;i<n&&(__HI(b) != 0xfff00000);i++){ 
+branch  0 never executed
+branch  1 never executed
+branch  2 never executed
+branch  3 never executed
+    #####:  270:		temp = b;
+    #####:  271:		b = ((double)(i+i)/x)*b - a;
+    #####:  272:		a = temp;
+        -:  273:	    }
+        -:  274:	}
+    #####:  275:	if(sign>0) return b; else return -b;
+branch  0 never executed
+branch  1 never executed
+        -:  276:}

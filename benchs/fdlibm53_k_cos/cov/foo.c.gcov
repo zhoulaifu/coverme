@@ -1,0 +1,106 @@
+        -:    0:Source:foo.c
+        -:    0:Graph:foo.gcno
+        -:    0:Data:foo.gcda
+        -:    0:Runs:1
+        -:    0:Programs:1
+        -:    1:
+        -:    2:/* @(#)k_cos.c 1.4 96/03/07 */
+        -:    3:/*
+        -:    4: * ====================================================
+        -:    5: * Copyright (C) 1993 by Sun Microsystems, Inc. All rights reserved.
+        -:    6: *
+        -:    7: * Developed at SunSoft, a Sun Microsystems, Inc. business.
+        -:    8: * Permission to use, copy, modify, and distribute this
+        -:    9: * software is freely granted, provided that this notice 
+        -:   10: * is preserved.
+        -:   11: * ====================================================
+        -:   12: */
+        -:   13:
+        -:   14:/*
+        -:   15: * __kernel_cos( x,  y )
+        -:   16: * kernel cos function on [-pi/4, pi/4], pi/4 ~ 0.785398164
+        -:   17: * Input x is assumed to be bounded by ~pi/4 in magnitude.
+        -:   18: * Input y is the tail of x. 
+        -:   19: *
+        -:   20: * Algorithm
+        -:   21: *	1. Since cos(-x) = cos(x), we need only to consider positive x.
+        -:   22: *	2. if x < 2^-27 (hx<0x3e400000 0), return 1 with inexact if x!=0.
+        -:   23: *	3. cos(x) is approximated by a polynomial of degree 14 on
+        -:   24: *	   [0,pi/4]
+        -:   25: *		  	                 4            14
+        -:   26: *	   	cos(x) ~ 1 - x*x/2 + C1*x + ... + C6*x
+        -:   27: *	   where the Remes error is
+        -:   28: *	
+        -:   29: * 	|              2     4     6     8     10    12     14 |     -58
+        -:   30: * 	|cos(x)-(1-.5*x +C1*x +C2*x +C3*x +C4*x +C5*x  +C6*x  )| <= 2
+        -:   31: * 	|    					               | 
+        -:   32: * 
+        -:   33: * 	               4     6     8     10    12     14 
+        -:   34: *	4. let r = C1*x +C2*x +C3*x +C4*x +C5*x  +C6*x  , then
+        -:   35: *	       cos(x) = 1 - x*x/2 + r
+        -:   36: *	   since cos(x+y) ~ cos(x) - sin(x)*y 
+        -:   37: *			  ~ cos(x) - x*y,
+        -:   38: *	   a correction term is necessary in cos(x) and hence
+        -:   39: *		cos(x+y) = 1 - (x*x/2 - (r - x*y))
+        -:   40: *	   For better accuracy when x > 0.3, let qx = |x|/4 with
+        -:   41: *	   the last 32 bits mask off, and if x > 0.78125, let qx = 0.28125.
+        -:   42: *	   Then
+        -:   43: *		cos(x+y) = (1-qx) - ((x*x/2-qx) - (r-x*y)).
+        -:   44: *	   Note that 1-qx and (x*x/2-qx) is EXACT here, and the
+        -:   45: *	   magnitude of the latter is at least a quarter of x*x/2,
+        -:   46: *	   thus, reducing the rounding error in the subtraction.
+        -:   47: */
+        -:   48:
+        -:   49:#include "fdlibm.h"
+        -:   50:
+        -:   51:#ifdef __STDC__
+        -:   52:static const double 
+        -:   53:#else
+        -:   54:static double 
+        -:   55:#endif
+        -:   56:one =  1.00000000000000000000e+00, /* 0x3FF00000, 0x00000000 */
+        -:   57:C1  =  4.16666666666666019037e-02, /* 0x3FA55555, 0x5555554C */
+        -:   58:C2  = -1.38888888888741095749e-03, /* 0xBF56C16C, 0x16C15177 */
+        -:   59:C3  =  2.48015872894767294178e-05, /* 0x3EFA01A0, 0x19CB1590 */
+        -:   60:C4  = -2.75573143513906633035e-07, /* 0xBE927E4F, 0x809C52AD */
+        -:   61:C5  =  2.08757232129817482790e-09, /* 0x3E21EE9E, 0xBDB4B1C4 */
+        -:   62:C6  = -1.13596475577881948265e-11; /* 0xBDA8FAE9, 0xBE8838D4 */
+        -:   63:
+        -:   64:#ifdef __STDC__
+function foo_raw called 124271948 returned 100% blocks executed 64%
+124271948:   65:	double foo_raw(double x, double y)
+        -:   66:#else
+        -:   67:	double foo_raw(x, y)
+        -:   68:	double x,y;
+        -:   69:#endif
+        -:   70:{
+        -:   71:	double a,hz,z,r,qx;
+        -:   72:	int ix;
+124271948:   73:	ix = __HI(x)&0x7fffffff;	/* ix = |x|'s high word*/
+124271948:   74:	if(ix<0x3e400000) {			/* if x < 2**27 */
+branch  0 taken 0% (fallthrough)
+branch  1 taken 100%
+    #####:   75:	    if(((int)x)==0) return one;		/* generate inexact */
+branch  0 never executed
+branch  1 never executed
+        -:   76:	}
+124271948:   77:	z  = x*x;
+124271948:   78:	r  = z*(C1+z*(C2+z*(C3+z*(C4+z*(C5+z*C6)))));
+124271948:   79:	if(ix < 0x3FD33333) 			/* if |x| < 0.3 */ 
+branch  0 taken 0% (fallthrough)
+branch  1 taken 100%
+    #####:   80:	    return one - (0.5*z - (z*r - x*y));
+        -:   81:	else {
+124271948:   82:	    if(ix > 0x3fe90000) {		/* x > 0.78125 */
+branch  0 taken 100% (fallthrough)
+branch  1 taken 0%
+124271948:   83:		qx = 0.28125;
+        -:   84:	    } else {
+    #####:   85:	        __HI(qx) = ix-0x00200000;	/* x/4 */
+    #####:   86:	        __LO(qx) = 0;
+        -:   87:	    }
+124271948:   88:	    hz = 0.5*z-qx;
+124271948:   89:	    a  = one-qx;
+124271948:   90:	    return a - (hz - (z*r-x*y));
+        -:   91:	}
+        -:   92:}

@@ -1,0 +1,38 @@
+//#include <cstdio.h>
+
+#include <stdio.h>
+//TODO decomment
+#include "foo.h"
+#include "foo_r.h"
+//#include "penalty.h"
+#include <stdio.h>
+double __r; //representing func.
+double __d; //for depth
+
+void __pen(double x, double y){
+     __d++;
+     __r*=(x-y)*(x-y);
+     
+}
+//double initPen(){return 1;}
+
+
+//This func. might be called N times, where N is the number of sampling.
+double foo_r(double x){
+  __d=1;
+  __r=1;
+  printf("---bf--------------%f\n",__d);
+  printf("---bf--------------%f\n",__r);
+  
+  foo(x); //which invokes __pen in its body
+  printf("---af--------------%f\n",__d);
+  printf("---af--------------%f\n",__r);
+  return __r;
+}
+/*
+int test(){
+  printf ("foo_r(3.0)=%f (expected: 16)\n",foo_r(3.0));
+  printf ("foo_r(5.0)=%f (expected: 4)\n",foo_r(5.0));
+
+}
+*/

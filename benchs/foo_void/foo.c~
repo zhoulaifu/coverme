@@ -1,0 +1,10 @@
+#include <stdio.h>
+
+void foo(double x){
+  if (x>=7)
+    printf("True \n");
+  else 
+    printf("False \n");
+
+
+}

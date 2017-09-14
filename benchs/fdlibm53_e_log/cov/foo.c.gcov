@@ -1,0 +1,167 @@
+        -:    0:Source:foo.c
+        -:    0:Graph:foo.gcno
+        -:    0:Data:foo.gcda
+        -:    0:Runs:1
+        -:    0:Programs:1
+        -:    1:
+        -:    2:/* @(#)e_log.c 1.4 96/03/07 */
+        -:    3:/*
+        -:    4: * ====================================================
+        -:    5: * Copyright (C) 1993 by Sun Microsystems, Inc. All rights reserved.
+        -:    6: *
+        -:    7: * Developed at SunSoft, a Sun Microsystems, Inc. business.
+        -:    8: * Permission to use, copy, modify, and distribute this
+        -:    9: * software is freely granted, provided that this notice 
+        -:   10: * is preserved.
+        -:   11: * ====================================================
+        -:   12: */
+        -:   13:
+        -:   14:/* __ieee754_log(x)
+        -:   15: * Return the logrithm of x
+        -:   16: *
+        -:   17: * Method :                  
+        -:   18: *   1. Argument Reduction: find k and f such that 
+        -:   19: *			x = 2^k * (1+f), 
+        -:   20: *	   where  sqrt(2)/2 < 1+f < sqrt(2) .
+        -:   21: *
+        -:   22: *   2. Approximation of log(1+f).
+        -:   23: *	Let s = f/(2+f) ; based on log(1+f) = log(1+s) - log(1-s)
+        -:   24: *		 = 2s + 2/3 s**3 + 2/5 s**5 + .....,
+        -:   25: *	     	 = 2s + s*R
+        -:   26: *      We use a special Remes algorithm on [0,0.1716] to generate 
+        -:   27: * 	a polynomial of degree 14 to approximate R The maximum error 
+        -:   28: *	of this polynomial approximation is bounded by 2**-58.45. In
+        -:   29: *	other words,
+        -:   30: *		        2      4      6      8      10      12      14
+        -:   31: *	    R(z) ~ Lg1*s +Lg2*s +Lg3*s +Lg4*s +Lg5*s  +Lg6*s  +Lg7*s
+        -:   32: *  	(the values of Lg1 to Lg7 are listed in the program)
+        -:   33: *	and
+        -:   34: *	    |      2          14          |     -58.45
+        -:   35: *	    | Lg1*s +...+Lg7*s    -  R(z) | <= 2 
+        -:   36: *	    |                             |
+        -:   37: *	Note that 2s = f - s*f = f - hfsq + s*hfsq, where hfsq = f*f/2.
+        -:   38: *	In order to guarantee error in log below 1ulp, we compute log
+        -:   39: *	by
+        -:   40: *		log(1+f) = f - s*(f - R)	(if f is not too large)
+        -:   41: *		log(1+f) = f - (hfsq - s*(hfsq+R)).	(better accuracy)
+        -:   42: *	
+        -:   43: *	3. Finally,  log(x) = k*ln2 + log(1+f).  
+        -:   44: *			    = k*ln2_hi+(f-(hfsq-(s*(hfsq+R)+k*ln2_lo)))
+        -:   45: *	   Here ln2 is split into two floating point number: 
+        -:   46: *			ln2_hi + ln2_lo,
+        -:   47: *	   where n*ln2_hi is always exact for |n| < 2000.
+        -:   48: *
+        -:   49: * Special cases:
+        -:   50: *	log(x) is NaN with signal if x < 0 (including -INF) ; 
+        -:   51: *	log(+INF) is +INF; log(0) is -INF with signal;
+        -:   52: *	log(NaN) is that NaN with no signal.
+        -:   53: *
+        -:   54: * Accuracy:
+        -:   55: *	according to an error analysis, the error is always less than
+        -:   56: *	1 ulp (unit in the last place).
+        -:   57: *
+        -:   58: * Constants:
+        -:   59: * The hexadecimal values are the intended ones for the following 
+        -:   60: * constants. The decimal values may be used, provided that the 
+        -:   61: * compiler will convert from decimal to binary accurately enough 
+        -:   62: * to produce the hexadecimal values shown.
+        -:   63: */
+        -:   64:
+        -:   65:#include "fdlibm.h"
+        -:   66:
+        -:   67:#ifdef __STDC__
+        -:   68:static const double
+        -:   69:#else
+        -:   70:static double
+        -:   71:#endif
+        -:   72:ln2_hi  =  6.93147180369123816490e-01,	/* 3fe62e42 fee00000 */
+        -:   73:ln2_lo  =  1.90821492927058770002e-10,	/* 3dea39ef 35793c76 */
+        -:   74:two54   =  1.80143985094819840000e+16,  /* 43500000 00000000 */
+        -:   75:Lg1 = 6.666666666666735130e-01,  /* 3FE55555 55555593 */
+        -:   76:Lg2 = 3.999999999940941908e-01,  /* 3FD99999 9997FA04 */
+        -:   77:Lg3 = 2.857142874366239149e-01,  /* 3FD24924 94229359 */
+        -:   78:Lg4 = 2.222219843214978396e-01,  /* 3FCC71C5 1D8E78AF */
+        -:   79:Lg5 = 1.818357216161805012e-01,  /* 3FC74664 96CB03DE */
+        -:   80:Lg6 = 1.531383769920937332e-01,  /* 3FC39A09 D078C69F */
+        -:   81:Lg7 = 1.479819860511658591e-01;  /* 3FC2F112 DF3E5244 */
+        -:   82:
+        -:   83:static double zero   =  0.0;
+        -:   84:
+        -:   85:#ifdef __STDC__
+function foo_raw called 21282331 returned 100% blocks executed 63%
+ 21282331:   86:	double foo_raw(double x)
+        -:   87:#else
+        -:   88:	double foo_raw(x)
+        -:   89:	double x;
+        -:   90:#endif
+        -:   91:{
+        -:   92:	double hfsq,f,s,z,R,w,t1,t2,dk;
+        -:   93:	int k,hx,i,j;
+        -:   94:	unsigned lx;
+        -:   95:
+ 21282331:   96:	hx = __HI(x);		/* high word of x */
+ 21282331:   97:	lx = __LO(x);		/* low  word of x */
+        -:   98:
+ 21282331:   99:	k=0;
+ 21282331:  100:	if (hx < 0x00100000) {			/* x < 2**-1022  */
+branch  0 taken 50% (fallthrough)
+branch  1 taken 50%
+ 10640968:  101:	    if (((hx&0x7fffffff)|lx)==0) 
+branch  0 taken 0% (fallthrough)
+branch  1 taken 100%
+    #####:  102:		return -two54/zero;		/* log(+-0)=-inf */
+ 10640968:  103:	    if (hx<0) return (x-x)/zero;	/* log(-#) = NaN */
+branch  0 taken 100% (fallthrough)
+branch  1 taken 0%
+    #####:  104:	    k -= 54; x *= two54; /* subnormal number, scale up x */
+    #####:  105:	    hx = __HI(x);		/* high word of x */
+        -:  106:	} 
+ 10641363:  107:	if (hx >= 0x7ff00000) return x+x;
+branch  0 taken 0% (fallthrough)
+branch  1 taken 100%
+ 10641363:  108:	k += (hx>>20)-1023;
+ 10641363:  109:	hx &= 0x000fffff;
+ 10641363:  110:	i = (hx+0x95f64)&0x100000;
+ 10641363:  111:	__HI(x) = hx|(i^0x3ff00000);	/* normalize x or x/2 */
+ 10641363:  112:	k += (i>>20);
+ 10641363:  113:	f = x-1.0;
+ 10641363:  114:	if((0x000fffff&(2+hx))<3) {	/* |f| < 2**-20 */
+branch  0 taken 1% (fallthrough)
+branch  1 taken 99%
+       30:  115:	    if(f==zero) if(k==0) return zero;  else {dk=(double)k;
+branch  0 taken 0% (fallthrough)
+branch  1 taken 100%
+branch  2 never executed
+branch  3 never executed
+    #####:  116:				 return dk*ln2_hi+dk*ln2_lo;}
+       30:  117:	    R = f*f*(0.5-0.33333333333333333*f);
+       30:  118:	    if(k==0) return f-R; else {dk=(double)k;
+branch  0 taken 0% (fallthrough)
+branch  1 taken 100%
+       30:  119:	    	     return dk*ln2_hi-((R-dk*ln2_lo)-f);}
+        -:  120:	}
+ 10641333:  121: 	s = f/(2.0+f); 
+ 10641333:  122:	dk = (double)k;
+ 10641333:  123:	z = s*s;
+ 10641333:  124:	i = hx-0x6147a;
+ 10641333:  125:	w = z*z;
+ 10641333:  126:	j = 0x6b851-hx;
+ 10641333:  127:	t1= w*(Lg2+w*(Lg4+w*Lg6)); 
+ 10641333:  128:	t2= z*(Lg1+w*(Lg3+w*(Lg5+w*Lg7))); 
+ 10641333:  129:	i |= j;
+ 10641333:  130:	R = t2+t1;
+ 10641333:  131:	if(i>0) {
+branch  0 taken 4% (fallthrough)
+branch  1 taken 96%
+   477429:  132:	    hfsq=0.5*f*f;
+   477429:  133:	    if(k==0) return f-(hfsq-s*(hfsq+R)); else
+branch  0 taken 0% (fallthrough)
+branch  1 taken 100%
+   477429:  134:		     return dk*ln2_hi-((hfsq-(s*(hfsq+R)+dk*ln2_lo))-f);
+        -:  135:	} else {
+ 10163904:  136:	    if(k==0) return f-s*(f-R); else
+branch  0 taken 0% (fallthrough)
+branch  1 taken 100%
+ 10163904:  137:		     return dk*ln2_hi-((s*(f-R)-dk*ln2_lo)-f);
+        -:  138:	}
+        -:  139:}

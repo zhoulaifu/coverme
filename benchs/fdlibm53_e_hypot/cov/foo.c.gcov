@@ -1,0 +1,143 @@
+        -:    0:Source:foo.c
+        -:    0:Graph:foo.gcno
+        -:    0:Data:foo.gcda
+        -:    0:Runs:1
+        -:    0:Programs:1
+        -:    1:
+        -:    2:/* @(#)e_hypot.c 1.3 95/01/18 */
+        -:    3:/*
+        -:    4: * ====================================================
+        -:    5: * Copyright (C) 1993 by Sun Microsystems, Inc. All rights reserved.
+        -:    6: *
+        -:    7: * Developed at SunSoft, a Sun Microsystems, Inc. business.
+        -:    8: * Permission to use, copy, modify, and distribute this
+        -:    9: * software is freely granted, provided that this notice 
+        -:   10: * is preserved.
+        -:   11: * ====================================================
+        -:   12: */
+        -:   13:
+        -:   14:/* __ieee754_hypot(x,y)
+        -:   15: *
+        -:   16: * Method :                  
+        -:   17: *	If (assume round-to-nearest) z=x*x+y*y 
+        -:   18: *	has error less than sqrt(2)/2 ulp, than 
+        -:   19: *	sqrt(z) has error less than 1 ulp (exercise).
+        -:   20: *
+        -:   21: *	So, compute sqrt(x*x+y*y) with some care as 
+        -:   22: *	follows to get the error below 1 ulp:
+        -:   23: *
+        -:   24: *	Assume x>y>0;
+        -:   25: *	(if possible, set rounding to round-to-nearest)
+        -:   26: *	1. if x > 2y  use
+        -:   27: *		x1*x1+(y*y+(x2*(x+x1))) for x*x+y*y
+        -:   28: *	where x1 = x with lower 32 bits cleared, x2 = x-x1; else
+        -:   29: *	2. if x <= 2y use
+        -:   30: *		t1*y1+((x-y)*(x-y)+(t1*y2+t2*y))
+        -:   31: *	where t1 = 2x with lower 32 bits cleared, t2 = 2x-t1, 
+        -:   32: *	y1= y with lower 32 bits chopped, y2 = y-y1.
+        -:   33: *		
+        -:   34: *	NOTE: scaling may be necessary if some argument is too 
+        -:   35: *	      large or too tiny
+        -:   36: *
+        -:   37: * Special cases:
+        -:   38: *	hypot(x,y) is INF if x or y is +INF or -INF; else
+        -:   39: *	hypot(x,y) is NAN if x or y is NAN.
+        -:   40: *
+        -:   41: * Accuracy:
+        -:   42: * 	hypot(x,y) returns sqrt(x^2+y^2) with error less 
+        -:   43: * 	than 1 ulps (units in the last place) 
+        -:   44: */
+        -:   45:
+        -:   46:#include "fdlibm.h"
+        -:   47:
+        -:   48:#ifdef __STDC__
+function foo_raw called 29294528 returned 100% blocks executed 56%
+ 29294528:   49:	double foo_raw(double x, double y)
+        -:   50:#else
+        -:   51:	double foo_raw(x,y)
+        -:   52:	double x, y;
+        -:   53:#endif
+        -:   54:{
+ 29294528:   55:	double a=x,b=y,t1,t2,y1,y2,w;
+        -:   56:	int j,k,ha,hb;
+        -:   57:
+ 29294528:   58:	ha = __HI(x)&0x7fffffff;	/* high word of  x */
+ 29294528:   59:	hb = __HI(y)&0x7fffffff;	/* high word of  y */
+ 29294528:   60:	if(hb > ha) {a=y;b=x;j=ha; ha=hb;hb=j;} else {a=x;b=y;}
+branch  0 taken 50% (fallthrough)
+branch  1 taken 50%
+ 29294528:   61:	__HI(a) = ha;	/* a <- |a| */
+ 29294528:   62:	__HI(b) = hb;	/* b <- |b| */
+ 29294528:   63:	if((ha-hb)>0x3c00000) {return a+b;} /* x/y > 2**60 */
+branch  0 taken 0% (fallthrough)
+branch  1 taken 100%
+ 29294528:   64:	k=0;
+ 29294528:   65:	if(ha > 0x5f300000) {	/* a>2**500 */
+branch  0 taken 100% (fallthrough)
+branch  1 taken 0%
+ 29294528:   66:	   if(ha >= 0x7ff00000) {	/* Inf or NaN */
+branch  0 taken 0% (fallthrough)
+branch  1 taken 100%
+    #####:   67:	       w = a+b;			/* for sNaN */
+    #####:   68:	       if(((ha&0xfffff)|__LO(a))==0) w = a;
+branch  0 never executed
+branch  1 never executed
+    #####:   69:	       if(((hb^0x7ff00000)|__LO(b))==0) w = b;
+branch  0 never executed
+branch  1 never executed
+    #####:   70:	       return w;
+        -:   71:	   }
+        -:   72:	   /* scale a and b by 2**-600 */
+ 29294528:   73:	   ha -= 0x25800000; hb -= 0x25800000;	k += 600;
+ 29294528:   74:	   __HI(a) = ha;
+ 29294528:   75:	   __HI(b) = hb;
+        -:   76:	}
+ 29294528:   77:	if(hb < 0x20b00000) {	/* b < 2**-500 */
+branch  0 taken 0% (fallthrough)
+branch  1 taken 100%
+    #####:   78:	    if(hb <= 0x000fffff) {	/* subnormal b or 0 */	
+branch  0 never executed
+branch  1 never executed
+    #####:   79:		if((hb|(__LO(b)))==0) return a;
+branch  0 never executed
+branch  1 never executed
+    #####:   80:		t1=0;
+    #####:   81:		__HI(t1) = 0x7fd00000;	/* t1=2^1022 */
+    #####:   82:		b *= t1;
+    #####:   83:		a *= t1;
+    #####:   84:		k -= 1022;
+        -:   85:	    } else {		/* scale a and b by 2^600 */
+    #####:   86:	        ha += 0x25800000; 	/* a *= 2^600 */
+    #####:   87:		hb += 0x25800000;	/* b *= 2^600 */
+    #####:   88:		k -= 600;
+    #####:   89:	   	__HI(a) = ha;
+    #####:   90:	   	__HI(b) = hb;
+        -:   91:	    }
+        -:   92:	}
+        -:   93:    /* medium size a and b */
+ 29294528:   94:	w = a-b;
+ 29294528:   95:	if (w>b) {
+branch  0 taken 50% (fallthrough)
+branch  1 taken 50%
+ 14649937:   96:	    t1 = 0;
+ 14649937:   97:	    __HI(t1) = ha;
+ 14649937:   98:	    t2 = a-t1;
+ 14649937:   99:	    w  = sqrt(t1*t1-(b*(-b)-t2*(a+t1)));
+        -:  100:	} else {
+ 14644591:  101:	    a  = a+a;
+ 14644591:  102:	    y1 = 0;
+ 14644591:  103:	    __HI(y1) = hb;
+ 14644591:  104:	    y2 = b - y1;
+ 14644591:  105:	    t1 = 0;
+ 14644591:  106:	    __HI(t1) = ha+0x00100000;
+ 14644591:  107:	    t2 = a - t1;
+ 14644591:  108:	    w  = sqrt(t1*y1-(w*(-w)-(t1*y2+t2*b)));
+        -:  109:	}
+ 29294528:  110:	if(k!=0) {
+branch  0 taken 100% (fallthrough)
+branch  1 taken 0%
+ 29294528:  111:	    t1 = 1.0;
+ 29294528:  112:	    __HI(t1) += (k<<20);
+ 29294528:  113:	    return t1*w;
+    #####:  114:	} else return w;
+        -:  115:}

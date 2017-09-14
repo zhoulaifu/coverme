@@ -1,0 +1,14 @@
+foo: program with a single if-statement 'if (x<=7)
+foo_dup: program exactly the same as foo.c in folder foo, but a different folder name. Used for testing Makefile
+foo2: use a different folder name, a slightly different if-condition so to test Makefile
+foo_void: function foo takes a slighly different return type 'void' instead of double. Need to modify my source so to cope with this situation. 
+foo_printf: function foo takes a printf as an external library
+bva_prez_eg: the example that I used in BVA presentation on January 2015 to group members
+loop_incr: simplest loop with an incrementor 'x++'
+if_nested: a very simple nested if function. The example is used to show the limitation of current BVA design
+if_sequential: two if one after the other. Sequential, instead of nested. I want to use this example to show the BVA design issue. This example is supposed to be a better one than the 'if-nested' bench.
+if_complex: an example created by Prof. Su when we discuss on Tuesday April 28. The objective was to understand how LLVM treat complex predicate such as a combination of or, and, etc. The LLVM IR of the example shows us that LLVM actually decompose a complex predicate to atomic ones. 
+call_goo: a simplest function call scenario, where we will put instrumented penalty call  in the invoked function. Unlike the earlier foo_printf example, the invoked function is in the translation unit. Prof. Su suggests that we instrument all functions of a translation unit. In this example, the translation unit includes both functions of foo.c, i.e, both 'foo' and 'goo'. 
+call_goo_another_file: call_goo, but put goo in another file. In this test, we need to be able to instrument 'goo'. The implementation will do a "all translation units instrumentation"
+foo_int: a simple foo functionwith int input. Thee foo body is just empty. So my objective is to test the way our analyzer deal with incompatible integer input. 
+foo_int_mod: the int function that I discussed earlier with Prof. Su. 

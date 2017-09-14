@@ -1,0 +1,1 @@
+g++ cov.c foo.c libm.a -fprofile-arcs -ftest-coverage -fno-elide-constructors -fPIC -O0  -o cov

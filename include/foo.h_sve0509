@@ -1,0 +1,22 @@
+#ifndef _FOO_H
+#define _FOO_H
+#include "globals.h"
+
+#ifdef __cplusplus
+#define EXTERNC extern "C"
+#else
+#define EXTERNC
+#endif
+
+
+
+#if INPUT_KIND=='d'
+
+
+EXTERNC void foo ( double );
+
+#elif INPUT_KIND=='i'
+EXTERNC void foo ( int );
+#endif
+
+#endif

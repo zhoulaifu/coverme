@@ -1,0 +1,273 @@
+        -:    0:Source:foo.c
+        -:    0:Graph:foo.gcno
+        -:    0:Data:foo.gcda
+        -:    0:Runs:1
+        -:    0:Programs:1
+        -:    1:
+        -:    2:/* @(#)s_erf.c 1.3 95/01/18 */
+        -:    3:/*
+        -:    4: * ====================================================
+        -:    5: * Copyright (C) 1993 by Sun Microsystems, Inc. All rights reserved.
+        -:    6: *
+        -:    7: * Developed at SunSoft, a Sun Microsystems, Inc. business.
+        -:    8: * Permission to use, copy, modify, and distribute this
+        -:    9: * software is freely granted, provided that this notice 
+        -:   10: * is preserved.
+        -:   11: * ====================================================
+        -:   12: */
+        -:   13:
+        -:   14:/* double erf(double x)
+        -:   15: * double erfc(double x)
+        -:   16: *			     x
+        -:   17: *		      2      |\
+        -:   18: *     erf(x)  =  ---------  | exp(-t*t)dt
+        -:   19: *	 	   sqrt(pi) \| 
+        -:   20: *			     0
+        -:   21: *
+        -:   22: *     erfc(x) =  1-erf(x)
+        -:   23: *  Note that 
+        -:   24: *		erf(-x) = -erf(x)
+        -:   25: *		erfc(-x) = 2 - erfc(x)
+        -:   26: *
+        -:   27: * Method:
+        -:   28: *	1. For |x| in [0, 0.84375]
+        -:   29: *	    erf(x)  = x + x*R(x^2)
+        -:   30: *          erfc(x) = 1 - erf(x)           if x in [-.84375,0.25]
+        -:   31: *                  = 0.5 + ((0.5-x)-x*R)  if x in [0.25,0.84375]
+        -:   32: *	   where R = P/Q where P is an odd poly of degree 8 and
+        -:   33: *	   Q is an odd poly of degree 10.
+        -:   34: *						 -57.90
+        -:   35: *			| R - (erf(x)-x)/x | <= 2
+        -:   36: *	
+        -:   37: *
+        -:   38: *	   Remark. The formula is derived by noting
+        -:   39: *          erf(x) = (2/sqrt(pi))*(x - x^3/3 + x^5/10 - x^7/42 + ....)
+        -:   40: *	   and that
+        -:   41: *          2/sqrt(pi) = 1.128379167095512573896158903121545171688
+        -:   42: *	   is close to one. The interval is chosen because the fix
+        -:   43: *	   point of erf(x) is near 0.6174 (i.e., erf(x)=x when x is
+        -:   44: *	   near 0.6174), and by some experiment, 0.84375 is chosen to
+        -:   45: * 	   guarantee the error is less than one ulp for erf.
+        -:   46: *
+        -:   47: *      2. For |x| in [0.84375,1.25], let s = |x| - 1, and
+        -:   48: *         c = 0.84506291151 rounded to single (24 bits)
+        -:   49: *         	erf(x)  = sign(x) * (c  + P1(s)/Q1(s))
+        -:   50: *         	erfc(x) = (1-c)  - P1(s)/Q1(s) if x > 0
+        -:   51: *			  1+(c+P1(s)/Q1(s))    if x < 0
+        -:   52: *         	|P1/Q1 - (erf(|x|)-c)| <= 2**-59.06
+        -:   53: *	   Remark: here we use the taylor series expansion at x=1.
+        -:   54: *		erf(1+s) = erf(1) + s*Poly(s)
+        -:   55: *			 = 0.845.. + P1(s)/Q1(s)
+        -:   56: *	   That is, we use rational approximation to approximate
+        -:   57: *			erf(1+s) - (c = (single)0.84506291151)
+        -:   58: *	   Note that |P1/Q1|< 0.078 for x in [0.84375,1.25]
+        -:   59: *	   where 
+        -:   60: *		P1(s) = degree 6 poly in s
+        -:   61: *		Q1(s) = degree 6 poly in s
+        -:   62: *
+        -:   63: *      3. For x in [1.25,1/0.35(~2.857143)], 
+        -:   64: *         	erfc(x) = (1/x)*exp(-x*x-0.5625+R1/S1)
+        -:   65: *         	erf(x)  = 1 - erfc(x)
+        -:   66: *	   where 
+        -:   67: *		R1(z) = degree 7 poly in z, (z=1/x^2)
+        -:   68: *		S1(z) = degree 8 poly in z
+        -:   69: *
+        -:   70: *      4. For x in [1/0.35,28]
+        -:   71: *         	erfc(x) = (1/x)*exp(-x*x-0.5625+R2/S2) if x > 0
+        -:   72: *			= 2.0 - (1/x)*exp(-x*x-0.5625+R2/S2) if -6<x<0
+        -:   73: *			= 2.0 - tiny		(if x <= -6)
+        -:   74: *         	erf(x)  = sign(x)*(1.0 - erfc(x)) if x < 6, else
+        -:   75: *         	erf(x)  = sign(x)*(1.0 - tiny)
+        -:   76: *	   where
+        -:   77: *		R2(z) = degree 6 poly in z, (z=1/x^2)
+        -:   78: *		S2(z) = degree 7 poly in z
+        -:   79: *
+        -:   80: *      Note1:
+        -:   81: *	   To compute exp(-x*x-0.5625+R/S), let s be a single
+        -:   82: *	   precision number and s := x; then
+        -:   83: *		-x*x = -s*s + (s-x)*(s+x)
+        -:   84: *	        exp(-x*x-0.5626+R/S) = 
+        -:   85: *			exp(-s*s-0.5625)*exp((s-x)*(s+x)+R/S);
+        -:   86: *      Note2:
+        -:   87: *	   Here 4 and 5 make use of the asymptotic series
+        -:   88: *			  exp(-x*x)
+        -:   89: *		erfc(x) ~ ---------- * ( 1 + Poly(1/x^2) )
+        -:   90: *			  x*sqrt(pi)
+        -:   91: *	   We use rational approximation to approximate
+        -:   92: *      	g(s)=f(1/x^2) = log(erfc(x)*x) - x*x + 0.5625
+        -:   93: *	   Here is the error bound for R1/S1 and R2/S2
+        -:   94: *      	|R1/S1 - f(x)|  < 2**(-62.57)
+        -:   95: *      	|R2/S2 - f(x)|  < 2**(-61.52)
+        -:   96: *
+        -:   97: *      5. For inf > x >= 28
+        -:   98: *         	erf(x)  = sign(x) *(1 - tiny)  (raise inexact)
+        -:   99: *         	erfc(x) = tiny*tiny (raise underflow) if x > 0
+        -:  100: *			= 2 - tiny if x<0
+        -:  101: *
+        -:  102: *      7. Special case:
+        -:  103: *         	erf(0)  = 0, erf(inf)  = 1, erf(-inf) = -1,
+        -:  104: *         	erfc(0) = 1, erfc(inf) = 0, erfc(-inf) = 2, 
+        -:  105: *	   	erfc/erf(NaN) is NaN
+        -:  106: */
+        -:  107:
+        -:  108:
+        -:  109:#include "fdlibm.h"
+        -:  110:
+        -:  111:#ifdef __STDC__
+        -:  112:static const double
+        -:  113:#else
+        -:  114:static double
+        -:  115:#endif
+        -:  116:tiny	    = 1e-300,
+        -:  117:half=  5.00000000000000000000e-01, /* 0x3FE00000, 0x00000000 */
+        -:  118:one =  1.00000000000000000000e+00, /* 0x3FF00000, 0x00000000 */
+        -:  119:two =  2.00000000000000000000e+00, /* 0x40000000, 0x00000000 */
+        -:  120:	/* c = (float)0.84506291151 */
+        -:  121:erx =  8.45062911510467529297e-01, /* 0x3FEB0AC1, 0x60000000 */
+        -:  122:/*
+        -:  123: * Coefficients for approximation to  erf on [0,0.84375]
+        -:  124: */
+        -:  125:efx =  1.28379167095512586316e-01, /* 0x3FC06EBA, 0x8214DB69 */
+        -:  126:efx8=  1.02703333676410069053e+00, /* 0x3FF06EBA, 0x8214DB69 */
+        -:  127:pp0  =  1.28379167095512558561e-01, /* 0x3FC06EBA, 0x8214DB68 */
+        -:  128:pp1  = -3.25042107247001499370e-01, /* 0xBFD4CD7D, 0x691CB913 */
+        -:  129:pp2  = -2.84817495755985104766e-02, /* 0xBF9D2A51, 0xDBD7194F */
+        -:  130:pp3  = -5.77027029648944159157e-03, /* 0xBF77A291, 0x236668E4 */
+        -:  131:pp4  = -2.37630166566501626084e-05, /* 0xBEF8EAD6, 0x120016AC */
+        -:  132:qq1  =  3.97917223959155352819e-01, /* 0x3FD97779, 0xCDDADC09 */
+        -:  133:qq2  =  6.50222499887672944485e-02, /* 0x3FB0A54C, 0x5536CEBA */
+        -:  134:qq3  =  5.08130628187576562776e-03, /* 0x3F74D022, 0xC4D36B0F */
+        -:  135:qq4  =  1.32494738004321644526e-04, /* 0x3F215DC9, 0x221C1A10 */
+        -:  136:qq5  = -3.96022827877536812320e-06, /* 0xBED09C43, 0x42A26120 */
+        -:  137:/*
+        -:  138: * Coefficients for approximation to  erf  in [0.84375,1.25] 
+        -:  139: */
+        -:  140:pa0  = -2.36211856075265944077e-03, /* 0xBF6359B8, 0xBEF77538 */
+        -:  141:pa1  =  4.14856118683748331666e-01, /* 0x3FDA8D00, 0xAD92B34D */
+        -:  142:pa2  = -3.72207876035701323847e-01, /* 0xBFD7D240, 0xFBB8C3F1 */
+        -:  143:pa3  =  3.18346619901161753674e-01, /* 0x3FD45FCA, 0x805120E4 */
+        -:  144:pa4  = -1.10894694282396677476e-01, /* 0xBFBC6398, 0x3D3E28EC */
+        -:  145:pa5  =  3.54783043256182359371e-02, /* 0x3FA22A36, 0x599795EB */
+        -:  146:pa6  = -2.16637559486879084300e-03, /* 0xBF61BF38, 0x0A96073F */
+        -:  147:qa1  =  1.06420880400844228286e-01, /* 0x3FBB3E66, 0x18EEE323 */
+        -:  148:qa2  =  5.40397917702171048937e-01, /* 0x3FE14AF0, 0x92EB6F33 */
+        -:  149:qa3  =  7.18286544141962662868e-02, /* 0x3FB2635C, 0xD99FE9A7 */
+        -:  150:qa4  =  1.26171219808761642112e-01, /* 0x3FC02660, 0xE763351F */
+        -:  151:qa5  =  1.36370839120290507362e-02, /* 0x3F8BEDC2, 0x6B51DD1C */
+        -:  152:qa6  =  1.19844998467991074170e-02, /* 0x3F888B54, 0x5735151D */
+        -:  153:/*
+        -:  154: * Coefficients for approximation to  erfc in [1.25,1/0.35]
+        -:  155: */
+        -:  156:ra0  = -9.86494403484714822705e-03, /* 0xBF843412, 0x600D6435 */
+        -:  157:ra1  = -6.93858572707181764372e-01, /* 0xBFE63416, 0xE4BA7360 */
+        -:  158:ra2  = -1.05586262253232909814e+01, /* 0xC0251E04, 0x41B0E726 */
+        -:  159:ra3  = -6.23753324503260060396e+01, /* 0xC04F300A, 0xE4CBA38D */
+        -:  160:ra4  = -1.62396669462573470355e+02, /* 0xC0644CB1, 0x84282266 */
+        -:  161:ra5  = -1.84605092906711035994e+02, /* 0xC067135C, 0xEBCCABB2 */
+        -:  162:ra6  = -8.12874355063065934246e+01, /* 0xC0545265, 0x57E4D2F2 */
+        -:  163:ra7  = -9.81432934416914548592e+00, /* 0xC023A0EF, 0xC69AC25C */
+        -:  164:sa1  =  1.96512716674392571292e+01, /* 0x4033A6B9, 0xBD707687 */
+        -:  165:sa2  =  1.37657754143519042600e+02, /* 0x4061350C, 0x526AE721 */
+        -:  166:sa3  =  4.34565877475229228821e+02, /* 0x407B290D, 0xD58A1A71 */
+        -:  167:sa4  =  6.45387271733267880336e+02, /* 0x40842B19, 0x21EC2868 */
+        -:  168:sa5  =  4.29008140027567833386e+02, /* 0x407AD021, 0x57700314 */
+        -:  169:sa6  =  1.08635005541779435134e+02, /* 0x405B28A3, 0xEE48AE2C */
+        -:  170:sa7  =  6.57024977031928170135e+00, /* 0x401A47EF, 0x8E484A93 */
+        -:  171:sa8  = -6.04244152148580987438e-02, /* 0xBFAEEFF2, 0xEE749A62 */
+        -:  172:/*
+        -:  173: * Coefficients for approximation to  erfc in [1/.35,28]
+        -:  174: */
+        -:  175:rb0  = -9.86494292470009928597e-03, /* 0xBF843412, 0x39E86F4A */
+        -:  176:rb1  = -7.99283237680523006574e-01, /* 0xBFE993BA, 0x70C285DE */
+        -:  177:rb2  = -1.77579549177547519889e+01, /* 0xC031C209, 0x555F995A */
+        -:  178:rb3  = -1.60636384855821916062e+02, /* 0xC064145D, 0x43C5ED98 */
+        -:  179:rb4  = -6.37566443368389627722e+02, /* 0xC083EC88, 0x1375F228 */
+        -:  180:rb5  = -1.02509513161107724954e+03, /* 0xC0900461, 0x6A2E5992 */
+        -:  181:rb6  = -4.83519191608651397019e+02, /* 0xC07E384E, 0x9BDC383F */
+        -:  182:sb1  =  3.03380607434824582924e+01, /* 0x403E568B, 0x261D5190 */
+        -:  183:sb2  =  3.25792512996573918826e+02, /* 0x40745CAE, 0x221B9F0A */
+        -:  184:sb3  =  1.53672958608443695994e+03, /* 0x409802EB, 0x189D5118 */
+        -:  185:sb4  =  3.19985821950859553908e+03, /* 0x40A8FFB7, 0x688C246A */
+        -:  186:sb5  =  2.55305040643316442583e+03, /* 0x40A3F219, 0xCEDF3BE6 */
+        -:  187:sb6  =  4.74528541206955367215e+02, /* 0x407DA874, 0xE79FE763 */
+        -:  188:sb7  = -2.24409524465858183362e+01; /* 0xC03670E2, 0x42712D62 */
+        -:  189:
+        -:  190://There are two functions here, erf and erfc. I pick up erf for testing
+        -:  191:#ifdef __STDC__
+function foo_raw called 69772328 returned 100% blocks executed 35%
+ 69772328:  192:	double foo_raw(double x) 
+        -:  193:#else
+        -:  194:	double foo_raw(x) 
+        -:  195:	double x;
+        -:  196:#endif
+        -:  197:{
+        -:  198:	int hx,ix,i;
+        -:  199:	double R,S,P,Q,s,y,z,r;
+ 69772328:  200:	hx = __HI(x);
+ 69772328:  201:	ix = hx&0x7fffffff;
+ 69772328:  202:	if(ix>=0x7ff00000) {		/* erf(nan)=nan */
+branch  0 taken 0% (fallthrough)
+branch  1 taken 100%
+    #####:  203:	    i = ((unsigned)hx>>31)<<1;
+    #####:  204:	    return (double)(1-i)+one/x;	/* erf(+-inf)=+-1 */
+        -:  205:	}
+        -:  206:
+ 69772328:  207:	if(ix < 0x3feb0000) {		/* |x|<0.84375 */
+branch  0 taken 0% (fallthrough)
+branch  1 taken 100%
+    #####:  208:	    if(ix < 0x3e300000) { 	/* |x|<2**-28 */
+branch  0 never executed
+branch  1 never executed
+    #####:  209:	        if (ix < 0x00800000) 
+branch  0 never executed
+branch  1 never executed
+    #####:  210:		    return 0.125*(8.0*x+efx8*x);  /*avoid underflow */
+    #####:  211:		return x + efx*x;
+        -:  212:	    }
+    #####:  213:	    z = x*x;
+    #####:  214:	    r = pp0+z*(pp1+z*(pp2+z*(pp3+z*pp4)));
+    #####:  215:	    s = one+z*(qq1+z*(qq2+z*(qq3+z*(qq4+z*qq5))));
+    #####:  216:	    y = r/s;
+    #####:  217:	    return x + x*y;
+        -:  218:	}
+ 69772328:  219:	if(ix < 0x3ff40000) {		/* 0.84375 <= |x| < 1.25 */
+branch  0 taken 0% (fallthrough)
+branch  1 taken 100%
+    #####:  220:	    s = fabs(x)-one;
+    #####:  221:	    P = pa0+s*(pa1+s*(pa2+s*(pa3+s*(pa4+s*(pa5+s*pa6)))));
+    #####:  222:	    Q = one+s*(qa1+s*(qa2+s*(qa3+s*(qa4+s*(qa5+s*qa6)))));
+    #####:  223:	    if(hx>=0) return erx + P/Q; else return -erx - P/Q;
+branch  0 never executed
+branch  1 never executed
+        -:  224:	}
+ 69772328:  225:	if (ix >= 0x40180000) {		/* inf>|x|>=6 */
+branch  0 taken 100% (fallthrough)
+branch  1 taken 0%
+ 69772328:  226:	    if(hx>=0) return one-tiny; else return tiny-one;
+branch  0 taken 50% (fallthrough)
+branch  1 taken 50%
+        -:  227:	}
+    #####:  228:	x = fabs(x);
+    #####:  229: 	s = one/(x*x);
+    #####:  230:	if(ix< 0x4006DB6E) {	/* |x| < 1/0.35 */
+branch  0 never executed
+branch  1 never executed
+    #####:  231:	    R=ra0+s*(ra1+s*(ra2+s*(ra3+s*(ra4+s*(
+    #####:  232:				ra5+s*(ra6+s*ra7))))));
+    #####:  233:	    S=one+s*(sa1+s*(sa2+s*(sa3+s*(sa4+s*(
+    #####:  234:				sa5+s*(sa6+s*(sa7+s*sa8)))))));
+        -:  235:	} else {	/* |x| >= 1/0.35 */
+    #####:  236:	    R=rb0+s*(rb1+s*(rb2+s*(rb3+s*(rb4+s*(
+    #####:  237:				rb5+s*rb6)))));
+    #####:  238:	    S=one+s*(sb1+s*(sb2+s*(sb3+s*(sb4+s*(
+    #####:  239:				sb5+s*(sb6+s*sb7))))));
+        -:  240:	}
+    #####:  241:	z  = x;  
+    #####:  242:	__LO(z) = 0;
+    #####:  243:	r  =  __ieee754_exp(-z*z-0.5625)*__ieee754_exp((z-x)*(z+x)+R/S);
+call    0 never executed
+call    1 never executed
+    #####:  244:	if(hx>=0) return one-r/x; else return  r/x-one;
+branch  0 never executed
+branch  1 never executed
+        -:  245:}

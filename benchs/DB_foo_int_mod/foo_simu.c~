@@ -1,0 +1,31 @@
+
+double __r; //representing func.
+double __d; //for depth
+
+void foo(int i){
+  int lhs=i%3;
+  __pen(lhs,2);
+  
+  if (i % 3 == 2) 
+    return;
+}
+
+
+void __pen(double x, double y){
+  __d++;
+  __r*=(x-y)*(x-y);
+     
+}
+double foo_r(double x){
+  __d=0;
+  __r=1;        
+  foo(x); //which invokes __pen in its body
+  printf ("__r=%f\n", __r);
+  printf ("__d=%f\n", __d);
+  return __r;
+}
+
+int main(){
+  foo_r(5);
+  foo_r(3);
+}

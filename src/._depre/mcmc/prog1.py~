@@ -1,0 +1,98 @@
+import matplotlib
+
+matplotlib.use('TKAgg')
+
+import numpy as np
+import matplotlib.pyplot as plt
+import scipy.optimize as op
+
+mcmc=op.basinhopping
+
+
+X  = []
+tol=1e-7
+
+##prog1 also shows it does not work by blindly put the formula without continuity guarantee
+def prog1(x):
+    if x <=1500:
+        x= x + 1
+
+    if x*x <= 3.0:
+        x = x - 1
+
+    return x
+
+def _prog1(x):
+    r = 1
+ #   r = r * abs(x-1500)
+    r=r*(0 if x<=1500 else 1)
+    if x <=1500:
+        x= x + 1
+
+  #  r = r * abs (x*x - 3.0)
+    r=r*(0 if x*x==3.0 else 1)
+    if x*x <= 3.0:
+        x = x - 1
+
+    return (r,x)
+
+def _prog1_squared(x):
+    r = 1
+    r = r * (x-1.0)**2
+    if x <=1.0:
+        x= x + 1
+
+    r = r *  (x*x - 4.0)**2
+    if x*x <= 4.0:
+        x = x - 1
+
+    return (r,x)
+
+
+def t_prog1(x):
+    r,a=_prog1(x)
+    return r
+
+def t_prog1_squared(x):
+    r,a=_prog1_squared(x)
+    return r
+
+
+def draw():
+    x=np.linspace(-3.2,2.2,100)
+    #x=np.linspace(-10,10,200)
+    y = map (t_prog1, x)
+    y_squared = map (t_prog1_squared, x)
+   # plt.plot(x,y_squared)
+    plt.plot(x,y)
+    plt.show(block=False)
+    input("Hit Enter To Close")
+    plt.close()
+
+    
+
+ 
+def callback_local(x):
+    print ("Local Search:: At x = %.10f" % x)
+
+
+
+def callback_global(x,f,accepted):
+    global X
+    X=[]
+    if f<tol**2:
+        X.append(x)
+        conclusion= '==> good'
+    else:
+        conclusion= '==> not good enough'
+    print("MCMC Sampling:: At x=%.10f,  f=%.10f,  accepted=%d %s" % (x,f, int(accepted), conclusion ))
+    
+def accept_test(f_new, x_new, f_old, x_old):
+    if f_new>tol:
+        return False
+    return True
+
+def demo(niter=50,method='powell'):
+    res=mcmc(t_prog1,2000,callback=callback_global,minimizer_kwargs={'method':method},niter=niter,stepsize=2500,accept_test=accept_test)
+    print
+    print res
