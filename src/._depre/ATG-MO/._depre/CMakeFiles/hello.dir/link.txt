@@ -1,1 +1,0 @@
-/usr/bin/c++  -fPIC -std=c++11 -fno-rtti  -shared -Wl,-soname,libhello.so -o libhello.so CMakeFiles/hello.dir/Hello.o 

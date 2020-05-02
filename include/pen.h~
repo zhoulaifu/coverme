@@ -1,8 +1,0 @@
-#ifndef _PENALTY2_H_
-#define _PENALTY2_H_
-
-extern "C" void __pen (double x, double y);
-
-
-
-#endif

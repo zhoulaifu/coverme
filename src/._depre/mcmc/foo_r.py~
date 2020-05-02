@@ -1,9 +1,0 @@
-import ctypes
-from ctypes import cdll
-lib=cdll.LoadLibrary("../foo_r/libfoo_r.so")
-lib.foo_r.argtypes=(ctypes.c_double,)
-lib.foo_r.restype = ctypes.c_double
-r=lib.foo_r
-
-print "w=",r(9.0)
-

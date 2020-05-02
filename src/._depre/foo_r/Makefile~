@@ -1,2 +1,0 @@
-all:
-	@echo "Makefile at foo_r/"
